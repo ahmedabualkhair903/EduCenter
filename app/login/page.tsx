@@ -11,6 +11,8 @@ import {
 } from "react-icons/fi";
 import { LuGraduationCap } from "react-icons/lu";
 
+import { login } from "@/lib/auth";
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -37,24 +39,20 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    /*
-     * Frontend-only authentication for now.
-     *
-     * Later this can be replaced with:
-     * POST /api/auth/login
-     */
+    try {
+      login(email, password);
 
-    setTimeout(() => {
+      setTimeout(() => {
+        router.replace("/dashboard");
+      }, 300);
+    } catch {
       setLoading(false);
-      router.replace("/dashboard");
-    }, 500);
+      setError("حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى.");
+    }
   };
 
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-slate-50"
-    >
+    <main dir="rtl" className="min-h-screen bg-slate-50">
       <div className="grid min-h-screen lg:grid-cols-2">
         {/* Brand Side */}
         <section className="relative hidden overflow-hidden bg-teal-600 lg:flex">
@@ -74,9 +72,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <p className="text-lg font-bold text-white">
-                    مَنارة
-                  </p>
+                  <p className="text-lg font-bold text-white">مَنارة</p>
 
                   <p className="text-xs text-teal-100">
                     نظام إدارة المركز التعليمي
@@ -120,9 +116,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <p className="text-lg font-bold text-slate-900">
-                  مَنارة
-                </p>
+                <p className="text-lg font-bold text-slate-900">مَنارة</p>
 
                 <p className="text-xs text-slate-400">
                   نظام إدارة المركز التعليمي
@@ -145,10 +139,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5"
-            >
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
               <div>
                 <label
@@ -279,8 +270,8 @@ export default function LoginPage() {
 
             <div className="mt-8 border-t border-slate-100 pt-6 text-center">
               <p className="text-xs leading-5 text-slate-400">
-                هذا الإصدار يعمل محليًا حاليًا، ويمكن ربطه
-                لاحقًا بنظام مصادقة وAPI حقيقي.
+                هذا الإصدار يعمل محليًا حاليًا، ويمكن ربطه لاحقًا
+                بنظام مصادقة وAPI حقيقي.
               </p>
             </div>
           </div>
