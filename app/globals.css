@@ -1,26 +1,226 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --primary: #0f766e;
+  --primary-light: #f0fdfa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-cairo);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  direction: rtl;
+  background: var(--background);
 }
 
 body {
+  min-height: 100vh;
+  margin: 0;
+
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+  font-family: var(--font-cairo), Arial, Helvetica, sans-serif;
+
+  direction: rtl;
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: #ccfbf1;
+  color: #134e4a;
+}
+
+/* --------------------------------
+   Scrollbar
+-------------------------------- */
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* --------------------------------
+   Shared Form Field
+-------------------------------- */
+
+.field {
+  width: 100%;
+  height: 2.375rem;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+
+  background: #f8fafc;
+
+  padding: 0 0.75rem;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  color: #1e293b;
+
+  outline: none;
+
+  direction: rtl;
+  text-align: right;
+
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.field::placeholder {
+  color: #94a3b8;
+}
+
+.field:hover {
+  border-color: #cbd5e1;
+}
+
+.field:focus {
+  border-color: #5eead4;
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 3px rgba(20, 184, 166, 0.08);
+}
+
+.field:disabled {
+  cursor: not-allowed;
+
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+/* --------------------------------
+   Textarea
+-------------------------------- */
+
+textarea.field {
+  height: auto;
+  min-height: 5rem;
+
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+
+  resize: vertical;
+}
+
+/* --------------------------------
+   Select
+-------------------------------- */
+
+select.field {
+  appearance: none;
+
+  cursor: pointer;
+
+  padding-left: 2rem;
+}
+
+select.field:disabled {
+  cursor: not-allowed;
+}
+
+/* --------------------------------
+   Search / Number Inputs
+-------------------------------- */
+
+input[type="search"] {
+  direction: rtl;
+  text-align: right;
+}
+
+input[type="number"] {
+  direction: ltr;
+  text-align: right;
+}
+
+/* --------------------------------
+   Date Inputs
+-------------------------------- */
+
+input[type="date"] {
+  direction: ltr;
+  text-align: right;
+}
+
+/* --------------------------------
+   Search Decoration
+-------------------------------- */
+
+input[type="search"]::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+/* --------------------------------
+   Accessibility
+-------------------------------- */
+
+:focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 2px;
+}
+
+/* --------------------------------
+   Mobile
+-------------------------------- */
+
+@media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
 }

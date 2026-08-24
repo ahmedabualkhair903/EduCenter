@@ -1,0 +1,27 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="56" fill="#0D9488"/>
+
+  <path
+    d="M128 48L32 94L128 140L224 94L128 48Z"
+    fill="white"
+  />
+
+  <path
+    d="M72 113V157C72 157 93 180 128 180C163 180 184 157 184 157V113L128 140L72 113Z"
+    fill="white"
+  />
+
+  <path
+    d="M224 94V151"
+    stroke="white"
+    stroke-width="10"
+    stroke-linecap="round"
+  />
+
+  <circle
+    cx="224"
+    cy="158"
+    r="9"
+    fill="white"
+  />
+</svg>
