@@ -1,6 +1,12 @@
 export type StudentStatus = "active" | "inactive" | "suspended";
 
-export type CustomFieldType = "text" | "number" | "date" | "select" | "textarea" | "boolean";
+export type CustomFieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "select"
+  | "textarea"
+  | "boolean";
 
 export type StudentCustomFieldDefinition = {
   id: string;
@@ -35,8 +41,15 @@ export type Student = {
   address?: string;
   notes?: string;
   status: StudentStatus;
+
+  /**
+   * Dynamic custom field values.
+   * The field definitions are managed separately from the student record.
+   */
   customFields: StudentCustomFieldValue[];
+
   financial: StudentFinancialSummary;
+
   createdAt: string;
   updatedAt: string;
 };
