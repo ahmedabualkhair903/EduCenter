@@ -16,10 +16,7 @@ export type ModuleKey =
   | "absenceMessages"
   | "reports";
 
-export type ModuleSettings = Record<
-  ModuleKey,
-  boolean
->;
+export type ModuleSettings = Record<ModuleKey, boolean>;
 
 export type CenterSettings = {
   centerName: string;

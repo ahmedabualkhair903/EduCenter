@@ -9,14 +9,24 @@ import {
 } from "react";
 
 import { mockSettings } from "@/data";
-import type { AppSettings, ModuleKey } from "@/types";
+import type {
+  AppSettings,
+  ModuleKey,
+} from "@/types";
 
 const STORAGE_KEY = "educenter.settings.v1";
 
 type AppSettingsContextValue = {
   settings: AppSettings;
-  isModuleEnabled: (module: ModuleKey) => boolean;
-  updateSettings: (patch: Partial<AppSettings>) => void;
+
+  isModuleEnabled: (
+    module: ModuleKey,
+  ) => boolean;
+
+  updateSettings: (
+    patch: Partial<AppSettings>,
+  ) => void;
+
   setModuleEnabled: (
     module: ModuleKey,
     enabled: boolean,
@@ -45,15 +55,18 @@ export function AppSettingsProvider({
   useEffect(() => {
     try {
       const stored =
-        window.localStorage.getItem(STORAGE_KEY);
+        window.localStorage.getItem(
+          STORAGE_KEY,
+        );
 
       if (!stored) {
         return;
       }
 
-      const parsed = JSON.parse(stored) as AppSettings;
+      const parsed =
+        JSON.parse(stored) as Partial<AppSettings>;
 
-      setSettings({
+      const mergedSettings: AppSettings = {
         ...mockSettings,
         ...parsed,
 
@@ -76,13 +89,17 @@ export function AppSettingsProvider({
           ...mockSettings.notifications,
           ...(parsed.notifications ?? {}),
         },
-      });
+      };
+
+      setSettings(mergedSettings);
     } catch {
       setSettings(mockSettings);
     }
   }, []);
 
-  const persist = (next: AppSettings) => {
+  const persist = (
+    next: AppSettings,
+  ) => {
     setSettings(next);
 
     try {
@@ -95,46 +112,81 @@ export function AppSettingsProvider({
     }
   };
 
-  const value = useMemo<AppSettingsContextValue>(
-    () => ({
-      settings,
+  const updateSettings = (
+    patch: Partial<AppSettings>,
+  ) => {
+    const next: AppSettings = {
+      ...settings,
+      ...patch,
 
-      isModuleEnabled: (module: ModuleKey) =>
-        Boolean(settings.modules[module]),
-
-      updateSettings: (
-        patch: Partial<AppSettings>,
-      ) => {
-        persist({
-          ...settings,
-          ...patch,
-        });
+      modules: {
+        ...settings.modules,
+        ...(patch.modules ?? {}),
       },
 
-      setModuleEnabled: (
-        module: ModuleKey,
-        enabled: boolean,
-      ) => {
-        persist({
-          ...settings,
-
-          modules: {
-            ...settings.modules,
-            [module]: enabled,
-          },
-        });
+      center: {
+        ...settings.center,
+        ...(patch.center ?? {}),
       },
-    }),
-    [settings],
-  );
+
+      attendance: {
+        ...settings.attendance,
+        ...(patch.attendance ?? {}),
+      },
+
+      notifications: {
+        ...settings.notifications,
+        ...(patch.notifications ?? {}),
+      },
+    };
+
+    persist(next);
+  };
+
+  const setModuleEnabled = (
+    module: ModuleKey,
+    enabled: boolean,
+  ) => {
+    persist({
+      ...settings,
+
+      modules: {
+        ...settings.modules,
+        [module]: enabled,
+      },
+    });
+  };
+
+  const value =
+    useMemo<AppSettingsContextValue>(
+      () => ({
+        settings,
+
+        isModuleEnabled: (
+          module: ModuleKey,
+        ) =>
+          Boolean(
+            settings.modules[module],
+          ),
+
+        updateSettings,
+
+        setModuleEnabled,
+      }),
+      [settings],
+    );
 
   return (
-    <AppSettingsContext.Provider value={value}>
+    <AppSettingsContext.Provider
+      value={value}
+    >
       {children}
     </AppSettingsContext.Provider>
   );
 }
 
 export function useAppSettings() {
-  return useContext(AppSettingsContext);
+  return useContext(
+    AppSettingsContext,
+  );
 }

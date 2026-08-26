@@ -6,10 +6,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
 import {
+  FiAlertCircle,
   FiCheckCircle,
   FiClock,
   FiEdit2,
+  FiFileText,
   FiMessageCircle,
   FiMoreVertical,
   FiPlus,
@@ -18,6 +21,8 @@ import {
   FiUsers,
   FiX,
 } from "react-icons/fi";
+
+import { useAppSettings } from "@/components/providers";
 
 import type {
   MessageStatus,
@@ -38,34 +43,36 @@ const initialMessages: MessageRecord[] = [
     id: "1",
     studentId: "group-3-secondary",
     guardianPhone: "",
-    type: "reminder",
+    type: "attendance",
     status: "sent",
-    title: "تذكير بموعد الحصة",
+    title: "تأكيد الحضور",
     recipient: "أولياء أمور ثالثة ثانوي",
     content:
-      "نذكركم بموعد حصة الفيزياء اليوم الساعة 07:00 مساءً.",
+      "تم تسجيل حضور الطالب في حصة الفيزياء.",
     createdAt: "2026-08-23T15:15:00",
     sentAt: "2026-08-23T15:15:00",
     recipientsCount: 32,
     scheduledDate: "23 أغسطس 2026",
     scheduledTime: "03:15 م",
   },
+
   {
     id: "2",
     studentId: "group-3-secondary-a",
     guardianPhone: "",
-    type: "notification",
+    type: "examResult",
     status: "sent",
-    title: "موعد الامتحان القادم",
+    title: "نتائج الامتحان",
     recipient: "ثالثة ثانوي - A",
     content:
-      "نحيطكم علمًا بأن امتحان الفيزياء سيكون يوم الثلاثاء القادم.",
+      "تم اعتماد نتيجة امتحان الفيزياء.",
     createdAt: "2026-08-23T13:40:00",
     sentAt: "2026-08-23T13:40:00",
     recipientsCount: 32,
     scheduledDate: "23 أغسطس 2026",
     scheduledTime: "01:40 م",
   },
+
   {
     id: "3",
     studentId: "late-payments",
@@ -81,22 +88,21 @@ const initialMessages: MessageRecord[] = [
     scheduledDate: "24 أغسطس 2026",
     scheduledTime: "10:00 ص",
   },
+
   {
     id: "4",
     studentId: "group-2-secondary-b",
     guardianPhone: "",
-    type: "group",
-    status: "sent",
-    title: "إلغاء حصة الفيزياء",
+    type: "absence",
+    status: "pending",
+    title: "إشعار غياب",
     recipient: "ثانية ثانوي - B",
     content:
-      "نحيطكم علمًا بإلغاء حصة الفيزياء اليوم لظرف طارئ.",
-    createdAt: "2026-08-22T18:30:00",
-    sentAt: "2026-08-22T18:30:00",
-    recipientsCount: 28,
-    scheduledDate: "22 أغسطس 2026",
-    scheduledTime: "06:30 م",
+      "نحيطكم علمًا بغياب الطالب عن الحصة.",
+    createdAt: "2026-08-24T08:30:00",
+    recipientsCount: 3,
   },
+
   {
     id: "5",
     studentId: "student-1",
@@ -113,18 +119,21 @@ const initialMessages: MessageRecord[] = [
     scheduledDate: "21 أغسطس 2026",
     scheduledTime: "11:20 ص",
   },
+
   {
     id: "6",
     studentId: "group-1-secondary-a",
     guardianPhone: "",
-    type: "reminder",
-    status: "draft",
-    title: "تذكير حضور",
+    type: "checkOut",
+    status: "failed",
+    title: "إشعار الانصراف",
     recipient: "أولى ثانوي - A",
     content:
-      "نرجو الالتزام بالحضور في الموعد المحدد للحصة.",
-    createdAt: "2026-08-24T00:00:00",
+      "تم تسجيل انصراف الطالب من المركز.",
+    createdAt: "2026-08-24T16:00:00",
     recipientsCount: 25,
+    error:
+      "تعذر تجهيز الرسالة في Mock Service.",
   },
 ];
 
@@ -133,10 +142,11 @@ const statusOptions: Array<{
   label: string;
 }> = [
   { value: "all", label: "كل الحالات" },
-  { value: "sent", label: "مرسلة" },
+  { value: "sent", label: "Sent" },
+  { value: "pending", label: "Pending" },
   { value: "scheduled", label: "مجدولة" },
   { value: "draft", label: "مسودة" },
-  { value: "failed", label: "فشل" },
+  { value: "failed", label: "Failed" },
 ];
 
 const typeOptions: Array<{
@@ -148,84 +158,148 @@ const typeOptions: Array<{
   { value: "group", label: "مجموعة" },
   { value: "notification", label: "إشعار" },
   { value: "reminder", label: "تذكير" },
+  { value: "examResult", label: "نتائج" },
+  { value: "attendance", label: "حضور" },
+  { value: "checkOut", label: "انصراف" },
+  { value: "absence", label: "غياب" },
 ];
 
 export default function MessagesPage() {
-  const [messages, setMessages] =
-    useState<MessageRecord[]>(initialMessages);
+  const {
+    settings,
+    isModuleEnabled,
+  } = useAppSettings();
 
-  const [search, setSearch] = useState("");
-
-  const [statusFilter, setStatusFilter] =
-    useState<"all" | MessageStatus>("all");
-
-  const [typeFilter, setTypeFilter] =
-    useState<"all" | MessageType>("all");
-
-  const [modalOpen, setModalOpen] =
-    useState(false);
-
-  const [editingMessage, setEditingMessage] =
-    useState<MessageRecord | null>(null);
-
-  const filteredMessages = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return messages.filter((message) => {
-      const searchableText = [
-        message.title,
-        message.recipient,
-        message.content ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch =
-        !query || searchableText.includes(query);
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        message.status === statusFilter;
-
-      const matchesType =
-        typeFilter === "all" ||
-        message.type === typeFilter;
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesType
-      );
-    });
-  }, [
+  const [
     messages,
-    search,
-    statusFilter,
-    typeFilter,
-  ]);
-
-  const sentCount = messages.filter(
-    (message) => message.status === "sent",
-  ).length;
-
-  const scheduledCount = messages.filter(
-    (message) => message.status === "scheduled",
-  ).length;
-
-  const draftCount = messages.filter(
-    (message) => message.status === "draft",
-  ).length;
-
-  const totalRecipients = messages.reduce(
-    (total, message) =>
-      total + message.recipientsCount,
-    0,
+    setMessages,
+  ] = useState<MessageRecord[]>(
+    initialMessages,
   );
 
-  const openCreateModal = () => {
-    setEditingMessage(null);
-    setModalOpen(true);
-  };
+  const [search, setSearch] =
+    useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState<
+    "all" | MessageStatus
+  >("all");
+
+  const [
+    typeFilter,
+    setTypeFilter,
+  ] = useState<
+    "all" | MessageType
+  >("all");
+
+  const [
+    modalOpen,
+    setModalOpen,
+  ] = useState(false);
+
+  const [
+    editingMessage,
+    setEditingMessage,
+  ] = useState<MessageRecord | null>(
+    null,
+  );
+
+  const whatsappEnabled =
+    isModuleEnabled("whatsapp") &&
+    settings.notifications
+      .whatsappEnabled;
+
+  const filteredMessages =
+    useMemo(() => {
+      const query =
+        search
+          .trim()
+          .toLowerCase();
+
+      return messages.filter(
+        (message) => {
+          const searchableText = [
+            message.title,
+            message.recipient,
+            message.content ?? "",
+            message.error ?? "",
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          const matchesSearch =
+            !query ||
+            searchableText.includes(
+              query,
+            );
+
+          const matchesStatus =
+            statusFilter === "all" ||
+            message.status ===
+              statusFilter;
+
+          const matchesType =
+            typeFilter === "all" ||
+            message.type ===
+              typeFilter;
+
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesType
+          );
+        },
+      );
+    }, [
+      messages,
+      search,
+      statusFilter,
+      typeFilter,
+    ]);
+
+  const sentCount =
+    messages.filter(
+      (message) =>
+        message.status ===
+        "sent",
+    ).length;
+
+  const pendingCount =
+    messages.filter(
+      (message) =>
+        message.status ===
+        "pending",
+    ).length;
+
+  const failedCount =
+    messages.filter(
+      (message) =>
+        message.status ===
+        "failed",
+    ).length;
+
+  const scheduledCount =
+    messages.filter(
+      (message) =>
+        message.status ===
+        "scheduled",
+    ).length;
+
+  const totalRecipients =
+    messages.reduce(
+      (total, message) =>
+        total +
+        message.recipientsCount,
+      0,
+    );
+
+  const openCreateModal =
+    () => {
+      setEditingMessage(null);
+      setModalOpen(true);
+    };
 
   const openEditModal = (
     message: MessageRecord,
@@ -246,28 +320,34 @@ export default function MessagesPage() {
     >,
   ) => {
     if (editingMessage) {
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === editingMessage.id
-            ? {
-                ...message,
-                ...data,
-              }
-            : message,
-        ),
+      setMessages(
+        (current) =>
+          current.map(
+            (message) =>
+              message.id ===
+              editingMessage.id
+                ? {
+                    ...message,
+                    ...data,
+                  }
+                : message,
+          ),
       );
     } else {
-      const newMessage: MessageRecord = {
-        id: crypto.randomUUID(),
-        ...data,
-        createdAt:
-          new Date().toISOString(),
-      };
+      const newMessage: MessageRecord =
+        {
+          id: crypto.randomUUID(),
+          ...data,
+          createdAt:
+            new Date().toISOString(),
+        };
 
-      setMessages((current) => [
-        newMessage,
-        ...current,
-      ]);
+      setMessages(
+        (current) => [
+          newMessage,
+          ...current,
+        ],
+      );
     }
 
     closeModal();
@@ -276,18 +356,21 @@ export default function MessagesPage() {
   const handleDelete = (
     message: MessageRecord,
   ) => {
-    const confirmed = window.confirm(
-      `هل أنت متأكد من حذف "${message.title}"؟`,
-    );
+    const confirmed =
+      window.confirm(
+        `هل أنت متأكد من حذف "${message.title}"؟`,
+      );
 
     if (!confirmed) {
       return;
     }
 
-    setMessages((current) =>
-      current.filter(
-        (item) => item.id !== message.id,
-      ),
+    setMessages(
+      (current) =>
+        current.filter(
+          (item) =>
+            item.id !== message.id,
+        ),
     );
   };
 
@@ -295,36 +378,52 @@ export default function MessagesPage() {
     message: MessageRecord,
   ) => {
     if (
-      message.status === "sent"
+      !whatsappEnabled ||
+      message.status ===
+        "sent"
     ) {
       return;
     }
 
+    setMessages(
+      (current) =>
+        current.map((item) =>
+          item.id === message.id
+            ? {
+                ...item,
+                status: "pending",
+                error: undefined,
+              }
+            : item,
+        ),
+    );
+
+    /*
+     * Frontend only:
+     * لا يوجد WhatsApp API حقيقي هنا.
+     * الحالة Pending تمثل الرسالة الجاهزة
+     * لتسليمها إلى Backend لاحقًا.
+     */
+  };
+
+  useEffect(() => {
+    if (!whatsappEnabled) {
+      return;
+    }
+
     setMessages((current) =>
-      current.map((item) =>
-        item.id === message.id
-          ? {
-              ...item,
-              status: "sent",
-              sentAt:
-                new Date().toISOString(),
-              scheduledDate:
-                item.scheduledDate ??
-                "24 أغسطس 2026",
-              scheduledTime:
-                item.scheduledTime ??
-                "الآن",
-            }
-          : item,
+      current.map((message) =>
+        message.status ===
+          "pending"
+          ? message
+          : message,
       ),
     );
-  };
+  }, [whatsappEnabled]);
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Header */}
-
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
@@ -336,84 +435,137 @@ export default function MessagesPage() {
             </div>
 
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              الرسائل
+              WhatsApp والرسائل
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              إرسال ومتابعة رسائل WhatsApp
-              لأولياء الأمور والطلاب.
+              تجهيز ومتابعة رسائل النتائج
+              والحضور والانصراف والغياب.
             </p>
           </div>
 
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98]"
+            disabled={!whatsappEnabled}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             <FiPlus size={17} />
             رسالة جديدة
           </button>
         </div>
 
-        {/* Stats */}
+        {!whatsappEnabled && (
+          <section className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <FiAlertCircle
+              size={18}
+              className="mt-0.5 shrink-0 text-amber-600"
+            />
 
-        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-sm font-bold text-amber-800">
+                WhatsApp غير مفعّل
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-amber-700">
+                فعّل Module الخاص بـWhatsApp
+                من الإعدادات حتى تتمكن من
+                تجهيز الرسائل.
+              </p>
+            </div>
+          </section>
+        )}
+
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <MessageStat
-            label="الرسائل المرسلة"
+            label="Sent"
             value={sentCount}
             icon={
-              <FiCheckCircle size={19} />
+              <FiCheckCircle
+                size={19}
+              />
             }
           />
 
           <MessageStat
-            label="الرسائل المجدولة"
-            value={scheduledCount}
-            icon={<FiClock size={19} />}
+            label="Pending"
+            value={pendingCount}
+            icon={
+              <FiClock size={19} />
+            }
           />
 
           <MessageStat
-            label="المسودات"
-            value={draftCount}
-            icon={<FiEdit2 size={19} />}
+            label="Failed"
+            value={failedCount}
+            icon={
+              <FiAlertCircle
+                size={19}
+              />
+            }
+          />
+
+          <MessageStat
+            label="مجدولة"
+            value={scheduledCount}
+            icon={
+              <FiClock size={19} />
+            }
           />
 
           <MessageStat
             label="إجمالي المستلمين"
             value={totalRecipients}
-            icon={<FiUsers size={19} />}
+            icon={
+              <FiUsers size={19} />
+            }
           />
         </section>
-
-        {/* WhatsApp Banner */}
 
         <section className="mb-6 overflow-hidden rounded-xl border border-teal-100 bg-gradient-to-l from-teal-50 to-white p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
-                <FiMessageCircle size={21} />
+                <FiMessageCircle
+                  size={21}
+                />
               </div>
 
               <div>
                 <h2 className="text-sm font-bold text-slate-800">
-                  رسائل WhatsApp
+                  WhatsApp
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  تواصل سريع ومنظم مع أولياء
-                  الأمور والطلاب.
+                  الواجهة مجهزة للربط مع Backend
+                  وWhatsApp API لاحقًا.
                 </p>
               </div>
             </div>
 
-            <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              النظام جاهز للإرسال
+            <span
+              className={[
+                "inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold",
+                whatsappEnabled
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-slate-100 text-slate-500",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "h-1.5 w-1.5 rounded-full",
+                  whatsappEnabled
+                    ? "bg-emerald-500"
+                    : "bg-slate-400",
+                ].join(" ")}
+              />
+
+              {whatsappEnabled
+                ? "الوحدة مفعلة"
+                : "الوحدة متوقفة"}
             </span>
           </div>
         </section>
-
-        {/* Filters */}
 
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row">
@@ -427,7 +579,9 @@ export default function MessagesPage() {
                 type="search"
                 value={search}
                 onChange={(event) =>
-                  setSearch(event.target.value)
+                  setSearch(
+                    event.target.value,
+                  )
                 }
                 placeholder="ابحث في الرسائل أو المستلمين..."
                 aria-label="البحث في الرسائل"
@@ -445,16 +599,22 @@ export default function MessagesPage() {
                 )
               }
               aria-label="فلترة حسب النوع"
-              className="h-10 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+              className="h-10 min-w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
             >
-              {typeOptions.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.label}
-                </option>
-              ))}
+              {typeOptions.map(
+                (option) => (
+                  <option
+                    key={
+                      option.value
+                    }
+                    value={
+                      option.value
+                    }
+                  >
+                    {option.label}
+                  </option>
+                ),
+              )}
             </select>
 
             <select
@@ -467,21 +627,25 @@ export default function MessagesPage() {
                 )
               }
               aria-label="فلترة حسب الحالة"
-              className="h-10 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+              className="h-10 min-w-36 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
             >
-              {statusOptions.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.label}
-                </option>
-              ))}
+              {statusOptions.map(
+                (option) => (
+                  <option
+                    key={
+                      option.value
+                    }
+                    value={
+                      option.value
+                    }
+                  >
+                    {option.label}
+                  </option>
+                ),
+              )}
             </select>
           </div>
         </section>
-
-        {/* Table */}
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -491,7 +655,9 @@ export default function MessagesPage() {
               </h2>
 
               <p className="mt-1 text-xs text-slate-400">
-                عرض {filteredMessages.length} رسالة
+                عرض{" "}
+                {filteredMessages.length}{" "}
+                رسالة
               </p>
             </div>
 
@@ -501,9 +667,10 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {filteredMessages.length > 0 ? (
+          {filteredMessages.length >
+          0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-right">
+              <table className="w-full min-w-[1150px] text-right">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/70">
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500">
@@ -540,7 +707,9 @@ export default function MessagesPage() {
                   {filteredMessages.map(
                     (message) => (
                       <tr
-                        key={message.id}
+                        key={
+                          message.id
+                        }
                         className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
                       >
                         <td className="max-w-[330px] px-5 py-4">
@@ -553,25 +722,41 @@ export default function MessagesPage() {
 
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-800">
-                                {message.title}
+                                {
+                                  message.title
+                                }
                               </p>
 
                               <p className="mt-1 truncate text-[11px] text-slate-400">
-                                {message.content}
+                                {
+                                  message.content
+                                }
                               </p>
+
+                              {message.error && (
+                                <p className="mt-1 truncate text-[10px] text-red-500">
+                                  {
+                                    message.error
+                                  }
+                                </p>
+                              )}
                             </div>
                           </div>
                         </td>
 
                         <td className="px-5 py-4">
                           <span className="text-xs font-medium text-slate-600">
-                            {message.recipient}
+                            {
+                              message.recipient
+                            }
                           </span>
                         </td>
 
                         <td className="px-5 py-4">
                           <MessageTypeBadge
-                            type={message.type}
+                            type={
+                              message.type
+                            }
                           />
                         </td>
 
@@ -614,7 +799,9 @@ export default function MessagesPage() {
 
                         <td className="px-5 py-4">
                           <MessageStatusBadge
-                            status={message.status}
+                            status={
+                              message.status
+                            }
                           />
                         </td>
 
@@ -644,15 +831,21 @@ export default function MessagesPage() {
                                 )
                               }
                               disabled={
+                                !whatsappEnabled ||
                                 message.status ===
-                                "sent"
+                                  "sent" ||
+                                message.status ===
+                                  "pending"
                               }
                               className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-teal-50 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40"
                               title={
                                 message.status ===
                                 "sent"
                                   ? "تم الإرسال"
-                                  : "إرسال"
+                                  : message.status ===
+                                    "pending"
+                                  ? "Pending"
+                                  : "تجهيز للإرسال"
                               }
                               aria-label={`إرسال ${message.title}`}
                             >
@@ -758,7 +951,7 @@ function MessageStat({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Status Badge                                                               */
+/* Status                                                                     */
 /* -------------------------------------------------------------------------- */
 
 function MessageStatusBadge({
@@ -770,20 +963,31 @@ function MessageStatusBadge({
     MessageStatus,
     string
   > = {
-    sent: "bg-emerald-50 text-emerald-700",
-    scheduled: "bg-blue-50 text-blue-700",
-    draft: "bg-slate-100 text-slate-600",
-    failed: "bg-red-50 text-red-700",
+    sent:
+      "bg-emerald-50 text-emerald-700",
+
+    pending:
+      "bg-amber-50 text-amber-700",
+
+    scheduled:
+      "bg-blue-50 text-blue-700",
+
+    draft:
+      "bg-slate-100 text-slate-600",
+
+    failed:
+      "bg-red-50 text-red-700",
   };
 
   const labels: Record<
     MessageStatus,
     string
   > = {
-    sent: "مرسلة",
+    sent: "Sent",
+    pending: "Pending",
     scheduled: "مجدولة",
     draft: "مسودة",
-    failed: "فشل",
+    failed: "Failed",
   };
 
   return (
@@ -796,7 +1000,7 @@ function MessageStatusBadge({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Type Badge                                                                 */
+/* Type                                                                       */
 /* -------------------------------------------------------------------------- */
 
 function MessageTypeBadge({
@@ -812,6 +1016,10 @@ function MessageTypeBadge({
     group: "مجموعة",
     notification: "إشعار",
     reminder: "تذكير",
+    examResult: "نتائج",
+    attendance: "حضور",
+    checkOut: "انصراف",
+    absence: "غياب",
   };
 
   return (
@@ -841,54 +1049,86 @@ function MessageModal({
     >,
   ) => void;
 }) {
-  const isEdit = Boolean(message);
+  const isEdit =
+    Boolean(message);
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] =
+    useState("");
+
   const [recipient, setRecipient] =
     useState("");
+
   const [type, setType] =
-    useState<MessageType>("individual");
-  const [content, setContent] = useState("");
-  const [date, setDate] = useState(
-    "24 أغسطس 2026",
-  );
+    useState<MessageType>(
+      "individual",
+    );
+
+  const [content, setContent] =
+    useState("");
+
+  const [date, setDate] =
+    useState("");
+
   const [time, setTime] =
-    useState("04:00 م");
+    useState("");
+
   const [
     recipientsCount,
     setRecipientsCount,
   ] = useState("1");
+
   const [status, setStatus] =
-    useState<MessageStatus>("draft");
-  const [error, setError] = useState("");
+    useState<MessageStatus>(
+      "draft",
+    );
+
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    setTitle(message?.title ?? "");
-    setRecipient(message?.recipient ?? "");
-    setType(
-      message?.type ?? "individual",
+    setTitle(
+      message?.title ?? "",
     );
-    setContent(message?.content ?? "");
+
+    setRecipient(
+      message?.recipient ?? "",
+    );
+
+    setType(
+      message?.type ??
+        "individual",
+    );
+
+    setContent(
+      message?.content ?? "",
+    );
+
     setDate(
       message?.scheduledDate ??
-        "24 أغسطس 2026",
+        "",
     );
+
     setTime(
       message?.scheduledTime ??
-        "04:00 م",
+        "",
     );
+
     setRecipientsCount(
       String(
-        message?.recipientsCount ?? 1,
+        message?.recipientsCount ??
+          1,
       ),
     );
+
     setStatus(
-      message?.status ?? "draft",
+      message?.status ??
+        "draft",
     );
+
     setError("");
   }, [open, message]);
 
@@ -905,59 +1145,90 @@ function MessageModal({
       setError(
         "يرجى إدخال عنوان الرسالة والمستلمين ومحتوى الرسالة.",
       );
+
       return;
     }
 
     const numericCount =
-      Number(recipientsCount);
+      Number(
+        recipientsCount,
+      );
 
     if (
-      !Number.isInteger(numericCount) ||
+      !Number.isInteger(
+        numericCount,
+      ) ||
       numericCount <= 0
     ) {
       setError(
         "عدد المستلمين يجب أن يكون رقمًا صحيحًا أكبر من صفر.",
       );
+
       return;
     }
 
     if (
       status === "scheduled" &&
-      (!date.trim() || !time.trim())
+      (!date.trim() ||
+        !time.trim())
     ) {
       setError(
         "يرجى إدخال تاريخ ووقت الجدولة.",
       );
+
       return;
     }
 
     onSubmit({
-      title: title.trim(),
-      recipient: recipient.trim(),
+      title:
+        title.trim(),
+
+      recipient:
+        recipient.trim(),
+
       type,
-      content: content.trim(),
-      recipientsCount: numericCount,
+
+      content:
+        content.trim(),
+
+      recipientsCount:
+        numericCount,
+
       status,
+
       scheduledDate:
-        status === "draft"
+        status ===
+        "draft"
           ? undefined
           : date.trim(),
+
       scheduledTime:
-        status === "draft"
+        status ===
+        "draft"
           ? undefined
           : time.trim(),
+
       studentId:
-        message?.studentId ?? "",
+        message?.studentId ??
+        "",
+
       guardianPhone:
-        message?.guardianPhone ?? "",
-      error: undefined,
+        message?.guardianPhone ??
+        "",
+
+      error:
+        status === "failed"
+          ? "تعذر تجهيز الرسالة."
+          : undefined,
     });
   };
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]"
-      onMouseDown={(event) => {
+      onMouseDown={(
+        event,
+      ) => {
         if (
           event.target ===
           event.currentTarget
@@ -967,8 +1238,6 @@ function MessageModal({
       }}
     >
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        {/* Header */}
-
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
           <div>
             <h2 className="text-base font-bold text-slate-900">
@@ -978,8 +1247,9 @@ function MessageModal({
             </h2>
 
             <p className="mt-1 text-xs text-slate-400">
-              أنشئ رسالة لإرسالها إلى الطلاب أو
-              أولياء الأمور.
+              تجهيز الرسالة فقط. الإرسال
+              الحقيقي سيتم لاحقًا من خلال
+              Backend.
             </p>
           </div>
 
@@ -992,8 +1262,6 @@ function MessageModal({
             <FiX size={19} />
           </button>
         </div>
-
-        {/* Body */}
 
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {error && (
@@ -1010,9 +1278,10 @@ function MessageModal({
                   setTitle(
                     event.target.value,
                   );
+
                   setError("");
                 }}
-                placeholder="مثال: تذكير بموعد الحصة"
+                placeholder="مثال: نتيجة امتحان الفيزياء"
                 className="field"
               />
             </MessageField>
@@ -1024,9 +1293,10 @@ function MessageModal({
                   setRecipient(
                     event.target.value,
                   );
+
                   setError("");
                 }}
-                placeholder="مثال: ثالثة ثانوي - A"
+                placeholder="اسم الطالب أو المجموعة"
                 className="field"
               />
             </MessageField>
@@ -1039,6 +1309,7 @@ function MessageModal({
                     event.target
                       .value as MessageType,
                   );
+
                   setError("");
                 }}
                 className="field"
@@ -1049,6 +1320,22 @@ function MessageModal({
 
                 <option value="group">
                   مجموعة
+                </option>
+
+                <option value="examResult">
+                  نتائج الامتحانات
+                </option>
+
+                <option value="attendance">
+                  حضور
+                </option>
+
+                <option value="checkOut">
+                  انصراف
+                </option>
+
+                <option value="absence">
+                  غياب
                 </option>
 
                 <option value="notification">
@@ -1066,11 +1353,14 @@ function MessageModal({
                 type="number"
                 min="1"
                 step="1"
-                value={recipientsCount}
+                value={
+                  recipientsCount
+                }
                 onChange={(event) => {
                   setRecipientsCount(
                     event.target.value,
                   );
+
                   setError("");
                 }}
                 className="field"
@@ -1085,16 +1375,13 @@ function MessageModal({
                     setContent(
                       event.target.value,
                     );
+
                     setError("");
                   }}
                   placeholder="اكتب محتوى الرسالة هنا..."
                   className="field min-h-32 resize-y"
                 />
               </MessageField>
-
-              <p className="mt-1.5 text-[10px] text-slate-400">
-                اكتب الرسالة بشكل واضح ومختصر.
-              </p>
             </div>
 
             <MessageField label="الحالة">
@@ -1105,6 +1392,7 @@ function MessageModal({
                     event.target
                       .value as MessageStatus,
                   );
+
                   setError("");
                 }}
                 className="field"
@@ -1113,16 +1401,20 @@ function MessageModal({
                   مسودة
                 </option>
 
+                <option value="pending">
+                  Pending
+                </option>
+
                 <option value="scheduled">
                   مجدولة
                 </option>
 
                 <option value="sent">
-                  مرسلة
+                  Sent
                 </option>
 
                 <option value="failed">
-                  فشل
+                  Failed
                 </option>
               </select>
             </MessageField>
@@ -1161,8 +1453,6 @@ function MessageModal({
           </div>
         </div>
 
-        {/* Footer */}
-
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
           <button
             type="button"
@@ -1177,7 +1467,7 @@ function MessageModal({
             onClick={handleSubmit}
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-semibold text-white transition hover:bg-teal-700"
           >
-            <FiSend size={15} />
+            <FiFileText size={15} />
 
             {isEdit
               ? "حفظ التعديلات"

@@ -20,7 +20,9 @@ import {
 import { useAppSettings } from "@/components/providers";
 import type { ModuleKey } from "@/types";
 
-const featureIcons: Partial<Record<ModuleKey, React.ReactNode>> = {
+const featureIcons: Partial<
+  Record<ModuleKey, React.ReactNode>
+> = {
   students: <FiUsers size={18} />,
   groups: <FiBookOpen size={18} />,
   lessons: <FiBookOpen size={18} />,
@@ -47,153 +49,210 @@ const featureDefinitions: Array<{
   {
     key: "students",
     title: "إدارة الطلاب",
-    description: "إضافة وتعديل ومتابعة بيانات الطلاب.",
+    description:
+      "إضافة وتعديل ومتابعة بيانات الطلاب.",
   },
   {
     key: "groups",
     title: "المجموعات",
-    description: "إدارة المجموعات والمواد والمدرسين.",
+    description:
+      "إدارة المجموعات والمواد والمدرسين.",
   },
   {
     key: "lessons",
     title: "الحصص",
-    description: "إدارة جدول الحصص والجلسات.",
+    description:
+      "إدارة جدول الحصص والجلسات.",
   },
   {
     key: "attendance",
     title: "الحضور والغياب",
-    description: "تسجيل ومتابعة حضور الطلاب.",
+    description:
+      "تسجيل ومتابعة حضور وغياب الطلاب.",
   },
   {
     key: "checkOut",
     title: "الحضور والانصراف",
-    description: "تسجيل دخول وانصراف الطلاب.",
+    description:
+      "تسجيل دخول وانصراف الطلاب.",
   },
   {
     key: "location",
     title: "Location",
-    description: "إظهار وإدارة إعدادات نطاق الحضور.",
+    description:
+      "تفعيل واستخدام إعدادات الموقع للحضور.",
   },
   {
     key: "attendancePassword",
     title: "Password للحضور",
-    description: "تفعيل كلمة مرور خاصة بفتح الحضور.",
+    description:
+      "تفعيل كلمة مرور خاصة بجلسة الحضور.",
   },
   {
     key: "exams",
     title: "الامتحانات والدرجات",
-    description: "إدارة الامتحانات ودرجات الطلاب.",
+    description:
+      "إدارة الامتحانات وإدخال نتائج الطلاب.",
   },
   {
     key: "payments",
-    title: "المدفوعات",
-    description: "متابعة الرسوم والدفعات والديون.",
+    title: "المصروفات والمدفوعات",
+    description:
+      "متابعة الرسوم والدفعات والديون.",
   },
   {
     key: "whatsapp",
     title: "WhatsApp",
     description:
-      "تجهيز رسائل أولياء الأمور للإرسال لاحقًا عبر Backend.",
+      "تجهيز ومتابعة رسائل أولياء الأمور.",
   },
   {
     key: "resultMessages",
     title: "رسائل النتائج",
-    description: "تفعيل رسائل نتائج الامتحانات.",
+    description:
+      "إرسال نتائج الامتحانات لأولياء الأمور لاحقًا.",
   },
   {
     key: "attendanceMessages",
     title: "رسائل الحضور",
-    description: "تفعيل رسائل الحضور.",
+    description:
+      "تجهيز إشعارات حضور الطلاب.",
   },
   {
     key: "checkOutMessages",
     title: "رسائل الانصراف",
-    description: "تفعيل رسائل الانصراف.",
+    description:
+      "تجهيز إشعارات انصراف الطلاب.",
   },
   {
     key: "absenceMessages",
     title: "رسائل الغياب",
-    description: "تفعيل رسائل الغياب.",
+    description:
+      "تجهيز إشعارات غياب الطلاب.",
   },
   {
     key: "excel",
     title: "Excel",
-    description: "استيراد وتصدير بيانات النظام.",
+    description:
+      "استيراد وتصدير بيانات النظام.",
   },
   {
     key: "reports",
     title: "التقارير",
-    description: "تجهيز وحدة التقارير للمركز.",
+    description:
+      "عرض وتجهيز تقارير المركز.",
   },
 ];
 
 export default function SettingsPage() {
-  const { settings, setModuleEnabled, updateSettings } =
-    useAppSettings();
+  const {
+    settings,
+    setModuleEnabled,
+    updateSettings,
+  } = useAppSettings();
 
-  const [centerName, setCenterName] = useState(
-    settings.center.centerName,
-  );
+  const [centerName, setCenterName] =
+    useState(
+      settings.center.centerName,
+    );
 
-  const [phone, setPhone] = useState(
-    settings.center.phone ?? "",
-  );
+  const [logoUrl, setLogoUrl] =
+    useState(
+      settings.center.logoUrl ?? "",
+    );
 
-  const [address, setAddress] = useState(
-    settings.center.address ?? "",
-  );
+  const [phone, setPhone] =
+    useState(
+      settings.center.phone ?? "",
+    );
 
-  const [academicYear, setAcademicYear] = useState(
-    settings.center.academicYear ?? "",
-  );
+  const [secondaryPhone, setSecondaryPhone] =
+    useState(
+      settings.center.secondaryPhone ?? "",
+    );
 
-  /*
-   * الإشعارات هنا Local UI settings.
-   *
-   * لا نعتمد على:
-   * settings.notifications.general
-   * settings.notifications.paymentReminders
-   * settings.notifications.attendance
-   *
-   * لأن هذه المفاتيح غير موجودة في Type AppSettings الحالي.
-   */
-  const [notifications, setNotifications] = useState(true);
+  const [address, setAddress] =
+    useState(
+      settings.center.address ?? "",
+    );
 
-  const [paymentReminders, setPaymentReminders] =
-    useState(true);
+  const [academicYear, setAcademicYear] =
+    useState(
+      settings.center.academicYear ?? "",
+    );
 
-  const [attendanceNotifications, setAttendanceNotifications] =
-    useState(true);
+  const [saved, setSaved] =
+    useState(false);
 
-  const [saved, setSaved] = useState(false);
+  const enabledCount =
+    Object.values(
+      settings.modules,
+    ).filter(Boolean).length;
 
-  const enabledCount = Object.values(settings.modules).filter(
-    Boolean,
-  ).length;
+  const totalModules =
+    Object.keys(
+      settings.modules,
+    ).length;
 
-  const totalModules = Object.keys(settings.modules).length;
+  const toggleModule = (
+    key: ModuleKey,
+  ) => {
+    setModuleEnabled(
+      key,
+      !settings.modules[key],
+    );
 
-  const toggleModule = (key: ModuleKey) => {
-    setModuleEnabled(key, !settings.modules[key]);
+    setSaved(false);
+  };
+
+  const updateAttendance = (
+    patch: Partial<
+      typeof settings.attendance
+    >,
+  ) => {
+    updateSettings({
+      attendance: {
+        ...settings.attendance,
+        ...patch,
+      },
+    });
+
+    setSaved(false);
+  };
+
+  const updateNotifications = (
+    patch: Partial<
+      typeof settings.notifications
+    >,
+  ) => {
+    updateSettings({
+      notifications: {
+        ...settings.notifications,
+        ...patch,
+      },
+    });
+
     setSaved(false);
   };
 
   const handleSave = () => {
-    /*
-     * نحفظ بيانات المركز فقط لأنها متوافقة
-     * مع AppSettings الحالية.
-     *
-     * إعدادات الإشعارات الحالية UI state فقط،
-     * ولما نعدل types/settings لاحقًا نقدر نربطها
-     * بالـAppSettings بشكل صحيح.
-     */
     updateSettings({
       center: {
         ...settings.center,
-        centerName,
-        phone,
-        address,
-        academicYear,
+        centerName:
+          centerName.trim(),
+        logoUrl:
+          logoUrl.trim() || undefined,
+        phone:
+          phone.trim() || undefined,
+        secondaryPhone:
+          secondaryPhone.trim() ||
+          undefined,
+        address:
+          address.trim() || undefined,
+        academicYear:
+          academicYear.trim() ||
+          undefined,
       },
     });
 
@@ -207,7 +266,6 @@ export default function SettingsPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
@@ -223,7 +281,8 @@ export default function SettingsPage() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              تخصيص النظام والتحكم في الخصائص والإشعارات.
+              تخصيص بيانات المركز والتحكم في
+              الخصائص والخدمات.
             </p>
           </div>
 
@@ -237,18 +296,16 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {/* Saved Message */}
         {saved && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
             <FiCheck size={16} />
-            تم حفظ الإعدادات.
+            تم حفظ الإعدادات بنجاح.
           </div>
         )}
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Main Content */}
           <div className="space-y-6 lg:col-span-2">
-            {/* Center Settings */}
+            {/* Center */}
             <section
               id="center-settings"
               className="rounded-xl border border-slate-200 bg-white shadow-sm"
@@ -264,6 +321,15 @@ export default function SettingsPage() {
                   label="اسم المركز"
                   value={centerName}
                   onChange={setCenterName}
+                  placeholder="اسم المركز"
+                />
+
+                <Field
+                  label="رابط اللوجو"
+                  value={logoUrl}
+                  onChange={setLogoUrl}
+                  placeholder="https://..."
+                  direction="ltr"
                 />
 
                 <Field
@@ -271,18 +337,29 @@ export default function SettingsPage() {
                   value={phone}
                   onChange={setPhone}
                   direction="ltr"
+                  placeholder="01xxxxxxxxx"
+                />
+
+                <Field
+                  label="رقم تواصل إضافي"
+                  value={secondaryPhone}
+                  onChange={setSecondaryPhone}
+                  direction="ltr"
+                  placeholder="01xxxxxxxxx"
                 />
 
                 <Field
                   label="العنوان"
                   value={address}
                   onChange={setAddress}
+                  placeholder="عنوان المركز"
                 />
 
                 <Field
                   label="العام الدراسي"
                   value={academicYear}
                   onChange={setAcademicYear}
+                  placeholder="2026 / 2027"
                 />
               </div>
             </section>
@@ -295,28 +372,162 @@ export default function SettingsPage() {
               <SettingsHeader
                 icon={<FiSettings size={18} />}
                 title="Modules"
-                description="أي Module مغلقة هنا تختفي تلقائيًا من Sidebar."
+                description="أي Module مغلقة هنا يجب ألا تظهر في واجهة النظام."
               />
 
               <div className="divide-y divide-slate-100">
-                {featureDefinitions.map((feature) => (
-                  <FeatureRow
-                    key={feature.key}
-                    title={feature.title}
-                    description={feature.description}
-                    icon={
-                      featureIcons[feature.key] ?? (
-                        <FiSettings size={18} />
-                      )
+                {featureDefinitions.map(
+                  (feature) => (
+                    <FeatureRow
+                      key={feature.key}
+                      title={feature.title}
+                      description={
+                        feature.description
+                      }
+                      icon={
+                        featureIcons[
+                          feature.key
+                        ] ?? (
+                          <FiSettings
+                            size={18}
+                          />
+                        )
+                      }
+                      enabled={Boolean(
+                        settings.modules[
+                          feature.key
+                        ],
+                      )}
+                      onToggle={() =>
+                        toggleModule(
+                          feature.key,
+                        )
+                      }
+                    />
+                  ),
+                )}
+              </div>
+            </section>
+
+            {/* Attendance */}
+            <section
+              id="attendance-settings"
+              className="rounded-xl border border-slate-200 bg-white shadow-sm"
+            >
+              <SettingsHeader
+                icon={<FiMapPin size={18} />}
+                title="إعدادات الحضور"
+                description="إعدادات الواجهة الخاصة بالحضور والموقع وكلمة المرور."
+              />
+
+              <div className="divide-y divide-slate-100">
+                <SettingToggle
+                  title="تفعيل الحضور"
+                  description="السماح باستخدام وحدة الحضور والغياب."
+                  enabled={
+                    settings.attendance
+                      .enabled
+                  }
+                  onToggle={() =>
+                    updateAttendance({
+                      enabled:
+                        !settings.attendance
+                          .enabled,
+                    })
+                  }
+                />
+
+                <SettingToggle
+                  title="تفعيل الانصراف"
+                  description="إظهار واستخدام تسجيل انصراف الطلاب."
+                  enabled={
+                    settings.attendance
+                      .checkOutEnabled
+                  }
+                  onToggle={() =>
+                    updateAttendance({
+                      checkOutEnabled:
+                        !settings.attendance
+                          .checkOutEnabled,
+                    })
+                  }
+                />
+
+                <SettingToggle
+                  title="تفعيل Location"
+                  description="عرض إعدادات الموقع للحضور. التحقق الحقيقي يتم لاحقًا من Backend."
+                  enabled={
+                    settings.attendance
+                      .locationEnabled
+                  }
+                  onToggle={() =>
+                    updateAttendance({
+                      locationEnabled:
+                        !settings.attendance
+                          .locationEnabled,
+                    })
+                  }
+                />
+
+                <SettingToggle
+                  title="تفعيل Password للحضور"
+                  description="استخدام كلمة مرور للجلسة. التحقق الحقيقي يتم لاحقًا من Backend."
+                  enabled={
+                    settings.attendance
+                      .passwordEnabled
+                  }
+                  onToggle={() =>
+                    updateAttendance({
+                      passwordEnabled:
+                        !settings.attendance
+                          .passwordEnabled,
+                    })
+                  }
+                />
+
+                <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                    <FiMapPin size={18} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-700">
+                      نطاق السماح بالحضور
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-5 text-slate-400">
+                      المسافة المسموح بها من موقع
+                      المركز بالمتر.
+                    </p>
+                  </div>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={
+                      settings.attendance
+                        .allowedRadiusMeters
                     }
-                    enabled={Boolean(
-                      settings.modules[feature.key],
-                    )}
-                    onToggle={() =>
-                      toggleModule(feature.key)
-                    }
+                    onChange={(event) => {
+                      const value =
+                        Number(
+                          event.target.value,
+                        );
+
+                      updateAttendance({
+                        allowedRadiusMeters:
+                          Number.isFinite(
+                            value,
+                          ) && value >= 0
+                            ? value
+                            : 0,
+                      });
+                    }}
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10 sm:w-32"
+                    aria-label="نطاق السماح بالحضور بالمتر"
                   />
-                ))}
+                </div>
               </div>
             </section>
 
@@ -327,41 +538,88 @@ export default function SettingsPage() {
             >
               <SettingsHeader
                 icon={<FiBell size={18} />}
-                title="الإشعارات"
-                description="تحكم في التنبيهات الداخلية."
+                title="إعدادات WhatsApp"
+                description="تفعيل أنواع الرسائل التي سيتم تجهيزها وإرسالها لاحقًا من خلال Backend."
               />
 
               <div className="divide-y divide-slate-100">
                 <SettingToggle
-                  title="الإشعارات العامة"
-                  description="عرض التنبيهات المهمة داخل لوحة التحكم."
-                  enabled={notifications}
+                  title="WhatsApp"
+                  description="تفعيل وحدة رسائل WhatsApp."
+                  enabled={
+                    settings.notifications
+                      .whatsappEnabled
+                  }
                   onToggle={() =>
-                    setNotifications(
-                      (value) => !value,
-                    )
+                    updateNotifications({
+                      whatsappEnabled:
+                        !settings.notifications
+                          .whatsappEnabled,
+                    })
                   }
                 />
 
                 <SettingToggle
-                  title="تذكير بالمدفوعات"
-                  description="إظهار تنبيهات للطلاب الذين لديهم مبالغ مستحقة."
-                  enabled={paymentReminders}
+                  title="رسائل النتائج"
+                  description="إرسال نتائج الامتحانات لأولياء الأمور."
+                  enabled={
+                    settings.notifications
+                      .resultMessagesEnabled
+                  }
                   onToggle={() =>
-                    setPaymentReminders(
-                      (value) => !value,
-                    )
+                    updateNotifications({
+                      resultMessagesEnabled:
+                        !settings.notifications
+                          .resultMessagesEnabled,
+                    })
                   }
                 />
 
                 <SettingToggle
-                  title="تنبيهات الحضور"
-                  description="إظهار تنبيهات مرتبطة بالحضور والغياب."
-                  enabled={attendanceNotifications}
+                  title="رسائل الحضور"
+                  description="إرسال إشعار عند تسجيل حضور الطالب."
+                  enabled={
+                    settings.notifications
+                      .attendanceMessagesEnabled
+                  }
                   onToggle={() =>
-                    setAttendanceNotifications(
-                      (value) => !value,
-                    )
+                    updateNotifications({
+                      attendanceMessagesEnabled:
+                        !settings.notifications
+                          .attendanceMessagesEnabled,
+                    })
+                  }
+                />
+
+                <SettingToggle
+                  title="رسائل الانصراف"
+                  description="إرسال إشعار عند تسجيل انصراف الطالب."
+                  enabled={
+                    settings.notifications
+                      .checkOutMessagesEnabled
+                  }
+                  onToggle={() =>
+                    updateNotifications({
+                      checkOutMessagesEnabled:
+                        !settings.notifications
+                          .checkOutMessagesEnabled,
+                    })
+                  }
+                />
+
+                <SettingToggle
+                  title="رسائل الغياب"
+                  description="إرسال إشعار غياب الطالب."
+                  enabled={
+                    settings.notifications
+                      .absenceMessagesEnabled
+                  }
+                  onToggle={() =>
+                    updateNotifications({
+                      absenceMessagesEnabled:
+                        !settings.notifications
+                          .absenceMessagesEnabled,
+                    })
                   }
                 />
               </div>
@@ -370,7 +628,6 @@ export default function SettingsPage() {
 
           {/* Sidebar */}
           <aside className="space-y-6">
-            {/* System Status */}
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
@@ -406,13 +663,40 @@ export default function SettingsPage() {
                 />
 
                 <StatusRow
+                  label="Location"
+                  value={
+                    settings.attendance
+                      .locationEnabled
+                      ? "مفعّل"
+                      : "متوقف"
+                  }
+                  positive={
+                    settings.attendance
+                      .locationEnabled
+                  }
+                />
+
+                <StatusRow
+                  label="WhatsApp"
+                  value={
+                    settings.notifications
+                      .whatsappEnabled
+                      ? "مفعّل"
+                      : "متوقف"
+                  }
+                  positive={
+                    settings.notifications
+                      .whatsappEnabled
+                  }
+                />
+
+                <StatusRow
                   label="الإصدار"
                   value="1.0.0"
                 />
               </div>
             </section>
 
-            {/* Quick Settings */}
             <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h2 className="text-sm font-bold text-slate-800">
@@ -428,45 +712,41 @@ export default function SettingsPage() {
                 <QuickSetting
                   label="بيانات المركز"
                   onClick={() =>
-                    document
-                      .getElementById(
-                        "center-settings",
-                      )
-                      ?.scrollIntoView({
-                        behavior: "smooth",
-                      })
+                    scrollToSection(
+                      "center-settings",
+                    )
                   }
                 />
 
                 <QuickSetting
                   label="Modules"
                   onClick={() =>
-                    document
-                      .getElementById(
-                        "features-settings",
-                      )
-                      ?.scrollIntoView({
-                        behavior: "smooth",
-                      })
+                    scrollToSection(
+                      "features-settings",
+                    )
                   }
                 />
 
                 <QuickSetting
-                  label="الإشعارات"
+                  label="إعدادات الحضور"
                   onClick={() =>
-                    document
-                      .getElementById(
-                        "notifications-settings",
-                      )
-                      ?.scrollIntoView({
-                        behavior: "smooth",
-                      })
+                    scrollToSection(
+                      "attendance-settings",
+                    )
+                  }
+                />
+
+                <QuickSetting
+                  label="WhatsApp"
+                  onClick={() =>
+                    scrollToSection(
+                      "notifications-settings",
+                    )
                   }
                 />
               </div>
             </section>
 
-            {/* API Ready */}
             <section className="rounded-xl border border-slate-200 bg-slate-900 p-5 text-white">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
@@ -479,9 +759,10 @@ export default function SettingsPage() {
                   </h2>
 
                   <p className="mt-1 text-[11px] leading-5 text-slate-300">
-                    الإعدادات الحالية تعمل محليًا،
-                    والـService Layer جاهزة لاستبدال
-                    Mock Data بـ REST API لاحقًا.
+                    الإعدادات الحالية محفوظة محليًا
+                    باستخدام Provider وLocal Storage.
+                    يمكن استبدال طبقة التخزين بـREST
+                    API لاحقًا دون إعادة بناء الواجهة.
                   </p>
                 </div>
               </div>
@@ -494,8 +775,19 @@ export default function SettingsPage() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Components                                                                 */
+/* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
+
+function scrollToSection(
+  id: string,
+) {
+  document
+    .getElementById(id)
+    ?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+}
 
 function SettingsHeader({
   icon,
@@ -530,11 +822,13 @@ function Field({
   value,
   onChange,
   direction,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   direction?: "ltr";
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -548,6 +842,7 @@ function Field({
           onChange(event.target.value)
         }
         dir={direction}
+        placeholder={placeholder}
         className="field"
       />
     </label>

@@ -14,58 +14,74 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     description: "إدارة بيانات الطلاب",
     navHref: "/students",
   },
+
   {
     key: "groups",
     label: "المجموعات",
     description: "إدارة مجموعات الطلاب",
     navHref: "/groups",
   },
+
   {
     key: "lessons",
     label: "الحصص",
     description: "إدارة الحصص والجلسات",
     navHref: "/lessons",
   },
+
   {
     key: "payments",
     label: "المدفوعات",
-    description: "إدارة المصروفات والمدفوعات",
+    description:
+      "إدارة المصروفات والمدفوعات",
     navHref: "/payments",
   },
+
   {
     key: "exams",
     label: "الامتحانات والدرجات",
-    description: "إدارة الامتحانات والنتائج",
+    description:
+      "إدارة الامتحانات والنتائج",
     navHref: "/exams",
   },
+
   {
     key: "excel",
     label: "Excel",
-    description: "استيراد وتصدير البيانات",
+    description:
+      "استيراد وتصدير البيانات",
     navHref: "/excel",
   },
+
   {
     key: "attendance",
     label: "الحضور والغياب",
-    description: "إدارة حضور الطلاب",
+    description:
+      "إدارة حضور وغياب الطلاب",
     navHref: "/attendance",
   },
+
   {
     key: "checkOut",
     label: "الحضور والانصراف",
-    description: "تسجيل دخول وانصراف الطلاب",
+    description:
+      "تسجيل دخول وانصراف الطلاب",
     navHref: "/check-out",
   },
+
   {
     key: "whatsapp",
     label: "WhatsApp",
-    description: "رسائل أولياء الأمور",
+    description:
+      "إدارة رسائل أولياء الأمور",
     navHref: "/messages",
   },
+
   {
     key: "reports",
     label: "التقارير",
-    description: "تقارير المركز",
+    description:
+      "تقارير وإحصائيات المركز",
     navHref: "/reports",
   },
 ];
@@ -75,23 +91,33 @@ export const DEFAULT_MODULES: Record<
   boolean
 > = {
   students: true,
+
   groups: true,
+
   lessons: true,
+
   payments: true,
+
   exams: true,
+
   excel: true,
+
   attendance: true,
 
   checkOut: false,
 
   location: false,
+
   attendancePassword: false,
 
   whatsapp: true,
 
   resultMessages: true,
+
   attendanceMessages: true,
+
   checkOutMessages: false,
+
   absenceMessages: true,
 
   reports: false,

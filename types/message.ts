@@ -2,11 +2,16 @@ export type MessageType =
   | "individual"
   | "group"
   | "notification"
-  | "reminder";
+  | "reminder"
+  | "examResult"
+  | "attendance"
+  | "checkOut"
+  | "absence";
 
 export type MessageStatus =
   | "draft"
   | "scheduled"
+  | "pending"
   | "sent"
   | "failed";
 

@@ -4,25 +4,25 @@ import {
   type ChangeEvent,
   type DragEvent,
   type ReactNode,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import {
   FiAlertCircle,
+  FiCheck,
   FiCheckCircle,
   FiDownload,
   FiFileText,
   FiInfo,
+  FiSearch,
   FiUpload,
+  FiUser,
   FiUsers,
   FiX,
 } from "react-icons/fi";
 
-type ImportType =
-  | "students"
-  | "groups"
-  | "payments"
-  | "attendance";
+type ImportType = "students" | "grades";
 
 type ImportStatus =
   | "ready"
@@ -30,157 +30,174 @@ type ImportStatus =
   | "imported"
   | "failed";
 
-type ImportHistory = {
+type PreviewStatus =
+  | "recognized"
+  | "unknown"
+  | "duplicate"
+  | "error";
+
+type PreviewRow = {
   id: string;
-  fileName: string;
-  type: ImportType;
-  date: string;
-  records: number;
-  status: ImportStatus;
+  values: string[];
+  status: PreviewStatus;
+  message?: string;
 };
 
-const initialHistory: ImportHistory[] = [
+type StudentExport = {
+  id: string;
+  studentId: string;
+  name: string;
+  phone: string;
+  guardianPhone: string;
+};
+
+const initialStudents: StudentExport[] = [
   {
     id: "1",
-    fileName: "students_august.xlsx",
-    type: "students",
-    date: "23 أغسطس 2026 - 11:40 ص",
-    records: 1248,
-    status: "imported",
+    studentId: "ST-1001",
+    name: "أحمد محمد علي",
+    phone: "01012345678",
+    guardianPhone: "01112345678",
   },
   {
     id: "2",
-    fileName: "groups_2026.xlsx",
-    type: "groups",
-    date: "22 أغسطس 2026 - 05:20 م",
-    records: 36,
-    status: "imported",
+    studentId: "ST-1002",
+    name: "محمد أحمد حسن",
+    phone: "01023456789",
+    guardianPhone: "01123456789",
   },
   {
     id: "3",
-    fileName: "payments_august.xlsx",
-    type: "payments",
-    date: "20 أغسطس 2026 - 02:15 م",
-    records: 426,
-    status: "imported",
+    studentId: "ST-1003",
+    name: "سارة محمود",
+    phone: "01034567890",
+    guardianPhone: "01134567890",
+  },
+  {
+    id: "4",
+    studentId: "ST-1004",
+    name: "يوسف خالد",
+    phone: "01045678901",
+    guardianPhone: "01145678901",
+  },
+];
+
+const initialHistory = [
+  {
+    id: "1",
+    fileName: "students_august.xlsx",
+    type: "students" as ImportType,
+    date: "23 أغسطس 2026 - 11:40 ص",
+    records: 1248,
+    status: "imported" as ImportStatus,
+  },
+  {
+    id: "2",
+    fileName: "grades_exam_01.xlsx",
+    type: "grades" as ImportType,
+    date: "22 أغسطس 2026 - 05:20 م",
+    records: 86,
+    status: "imported" as ImportStatus,
   },
 ];
 
 const importOptions: Array<{
   value: ImportType;
   label: string;
+  description: string;
   icon: ReactNode;
 }> = [
   {
     value: "students",
-    label: "الطلاب",
+    label: "استيراد الطلاب",
+    description: "إضافة أو تحديث بيانات الطلاب.",
     icon: <FiUsers size={17} />,
   },
   {
-    value: "groups",
-    label: "المجموعات",
+    value: "grades",
+    label: "استيراد الدرجات",
+    description: "رفع درجات امتحان من ملف Excel.",
     icon: <FiFileText size={17} />,
-  },
-  {
-    value: "payments",
-    label: "المدفوعات",
-    icon: <FiFileText size={17} />,
-  },
-  {
-    value: "attendance",
-    label: "الحضور",
-    icon: <FiCheckCircle size={17} />,
   },
 ];
 
-const exportOptions: Array<{
-  title: string;
-  description: string;
-  type: ImportType;
-  icon: React.ElementType;
-}> = [
-  {
-    title: "بيانات الطلاب",
-    description:
-      "تصدير جميع بيانات الطلاب المسجلة في النظام.",
-    type: "students",
-    icon: FiUsers,
-  },
-  {
-    title: "المجموعات",
-    description:
-      "تصدير المجموعات والمدرسين والمواد المرتبطة بها.",
-    type: "groups",
-    icon: FiFileText,
-  },
-  {
-    title: "المدفوعات",
-    description:
-      "تصدير سجل المدفوعات والديون والمبالغ المحصلة.",
-    type: "payments",
-    icon: FiFileText,
-  },
-  {
-    title: "الحضور",
-    description:
-      "تصدير سجل حضور وغياب الطلاب.",
-    type: "attendance",
-    icon: FiCheckCircle,
-  },
-];
-
-const typeLabels: Record<
-  ImportType,
-  string
-> = {
+const typeLabels: Record<ImportType, string> = {
   students: "طلاب",
-  groups: "مجموعات",
-  payments: "مدفوعات",
-  attendance: "حضور",
+  grades: "درجات",
 };
 
-const statusLabels: Record<
-  ImportStatus,
-  string
-> = {
+const statusLabels: Record<ImportStatus, string> = {
   ready: "جاهز",
   importing: "جاري الاستيراد",
-  imported: "تم الاستيراد",
+  imported: "تم الاعتماد",
   failed: "فشل",
 };
 
+const previewStatusLabels: Record<PreviewStatus, string> = {
+  recognized: "تم التعرف",
+  unknown: "طالب غير معروف",
+  duplicate: "بيانات مكررة",
+  error: "خطأ",
+};
+
 export default function ExcelPage() {
-  const fileInputRef =
-    useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedFile, setSelectedFile] =
-    useState<File | null>(null);
-
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importType, setImportType] =
     useState<ImportType>("students");
-
   const [importStatus, setImportStatus] =
     useState<ImportStatus>("ready");
 
-  const [history, setHistory] =
-    useState<ImportHistory[]>(initialHistory);
+  const [history, setHistory] = useState(initialHistory);
 
   const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] =
+    useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const [isDragging, setIsDragging] =
+  const [previewRows, setPreviewRows] =
+    useState<PreviewRow[]>([]);
+
+  const [studentSearch, setStudentSearch] =
+    useState("");
+
+  const [selectedStudent, setSelectedStudent] =
+    useState<StudentExport | null>(null);
+
+  const [exportLoading, setExportLoading] =
     useState(false);
 
-  const handleFile = (
-    file: File | undefined,
-  ) => {
+  const filteredStudents = useMemo(() => {
+    const query = studentSearch.trim().toLowerCase();
+
+    if (!query) {
+      return initialStudents;
+    }
+
+    return initialStudents.filter((student) =>
+      [
+        student.name,
+        student.studentId,
+        student.guardianPhone,
+      ].some((value) =>
+        value.toLowerCase().includes(query),
+      ),
+    );
+  }, [studentSearch]);
+
+  const handleFile = (file?: File) => {
     if (!file) {
       return;
     }
 
     setError("");
+    setShowPreview(false);
+    setPreviewRows([]);
+    setImportStatus("ready");
 
-    const fileName =
-      file.name.toLowerCase();
+    const fileName = file.name.toLowerCase();
 
     const isExcelFile =
       fileName.endsWith(".xlsx") ||
@@ -197,28 +214,150 @@ export default function ExcelPage() {
     }
 
     setSelectedFile(file);
-    setImportStatus("ready");
   };
 
   const handleInputChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
-    handleFile(
-      event.target.files?.[0],
-    );
+    handleFile(event.target.files?.[0]);
   };
 
   const handleDrop = (
     event: DragEvent<HTMLDivElement>,
   ) => {
     event.preventDefault();
-
     setIsDragging(false);
 
-    handleFile(
-      event.dataTransfer.files?.[0],
-    );
+    handleFile(event.dataTransfer.files?.[0]);
   };
+
+  const createPreview = () => {
+    if (!selectedFile) {
+      setError("اختر ملف Excel أولًا.");
+      return;
+    }
+
+    setError("");
+    setIsPreviewLoading(true);
+    setShowPreview(false);
+
+    window.setTimeout(() => {
+      const rows: PreviewRow[] =
+        importType === "students"
+          ? [
+              {
+                id: "1",
+                values: [
+                  "أحمد محمد علي",
+                  "ST-1001",
+                  "01012345678",
+                  "01112345678",
+                ],
+                status: "recognized",
+              },
+              {
+                id: "2",
+                values: [
+                  "محمد أحمد حسن",
+                  "ST-1002",
+                  "01023456789",
+                  "01123456789",
+                ],
+                status: "recognized",
+              },
+              {
+                id: "3",
+                values: [
+                  "طالب غير موجود",
+                  "ST-9999",
+                  "01000000000",
+                  "01100000000",
+                ],
+                status: "unknown",
+                message:
+                  "لم يتم العثور على الطالب في النظام.",
+              },
+              {
+                id: "4",
+                values: [
+                  "سارة محمود",
+                  "ST-1003",
+                  "01034567890",
+                  "01134567890",
+                ],
+                status: "duplicate",
+                message:
+                  "يوجد سجل مكرر داخل الملف.",
+              },
+            ]
+          : [
+              {
+                id: "1",
+                values: [
+                  "ST-1001",
+                  "أحمد محمد علي",
+                  "18",
+                  "20",
+                ],
+                status: "recognized",
+              },
+              {
+                id: "2",
+                values: [
+                  "ST-1002",
+                  "محمد أحمد حسن",
+                  "16",
+                  "20",
+                ],
+                status: "recognized",
+              },
+              {
+                id: "3",
+                values: [
+                  "ST-9999",
+                  "طالب غير معروف",
+                  "15",
+                  "20",
+                ],
+                status: "unknown",
+                message:
+                  "لم يتم التعرف على الطالب.",
+              },
+              {
+                id: "4",
+                values: [
+                  "ST-1003",
+                  "سارة محمود",
+                  "25",
+                  "20",
+                ],
+                status: "error",
+                message:
+                  "الدرجة أكبر من الدرجة النهائية.",
+              },
+            ];
+
+      setPreviewRows(rows);
+      setShowPreview(true);
+      setIsPreviewLoading(false);
+    }, 600);
+  };
+
+  const validPreviewRows = previewRows.filter(
+    (row) => row.status === "recognized",
+  );
+
+  const unknownCount = previewRows.filter(
+    (row) => row.status === "unknown",
+  ).length;
+
+  const duplicateCount = previewRows.filter(
+    (row) => row.status === "duplicate",
+  ).length;
+
+  const errorCount = previewRows.filter(
+    (row) => row.status === "error",
+  ).length;
 
   const handleImport = () => {
     if (!selectedFile) {
@@ -226,21 +365,33 @@ export default function ExcelPage() {
       return;
     }
 
+    if (!showPreview) {
+      setError(
+        "يجب مراجعة المعاينة قبل اعتماد البيانات.",
+      );
+      return;
+    }
+
+    if (validPreviewRows.length === 0) {
+      setError(
+        "لا توجد بيانات صالحة يمكن اعتمادها.",
+      );
+      return;
+    }
+
     setError("");
     setImportStatus("importing");
 
     window.setTimeout(() => {
-      const newRecord: ImportHistory = {
-        id: crypto.randomUUID(),
-        fileName: selectedFile.name,
-        type: importType,
-        date: "24 أغسطس 2026 - الآن",
-        records: 0,
-        status: "imported",
-      };
-
       setHistory((current) => [
-        newRecord,
+        {
+          id: crypto.randomUUID(),
+          fileName: selectedFile.name,
+          type: importType,
+          date: "26 أغسطس 2026 - الآن",
+          records: validPreviewRows.length,
+          status: "imported",
+        },
         ...current,
       ]);
 
@@ -250,6 +401,8 @@ export default function ExcelPage() {
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
+    setPreviewRows([]);
+    setShowPreview(false);
     setImportStatus("ready");
     setError("");
 
@@ -268,23 +421,70 @@ export default function ExcelPage() {
     );
   };
 
-  const handleExport = (
-    type: ImportType,
-  ) => {
-    const headers =
-      getExportHeaders(type);
+  const handleExportAllStudents = () => {
+    setExportLoading(true);
 
-    /*
-     * Frontend-only stage:
-     * We export a valid CSV file for now.
-     * The real XLSX generation will be connected
-     * to the backend / Excel library later.
-     */
+    window.setTimeout(() => {
+      const headers = [
+        "اسم الطالب",
+        "Student ID",
+        "رقم هاتف الطالب",
+        "رقم ولي الأمر",
+      ];
 
-    downloadCsv(
-      headers,
-      `${typeLabels[type]}.csv`,
-    );
+      const rows = initialStudents.map(
+        (student) => [
+          student.name,
+          student.studentId,
+          student.phone,
+          student.guardianPhone,
+        ],
+      );
+
+      downloadCsv(
+        headers,
+        "all-students.csv",
+        rows,
+      );
+
+      setExportLoading(false);
+    }, 400);
+  };
+
+  const handleExportSelectedStudent = () => {
+    if (!selectedStudent) {
+      return;
+    }
+
+    setExportLoading(true);
+
+    window.setTimeout(() => {
+      const headers = [
+        "البيانات الأساسية",
+        "المصروفات",
+        "الدرجات",
+        "الحضور",
+        "الغياب",
+      ];
+
+      const rows = [
+        [
+          `${selectedStudent.name} - ${selectedStudent.studentId}`,
+          "متاحة",
+          "متاحة",
+          "متاحة",
+          "متاحة",
+        ],
+      ];
+
+      downloadCsv(
+        headers,
+        `student-${selectedStudent.studentId}.csv`,
+        rows,
+      );
+
+      setExportLoading(false);
+    }, 400);
   };
 
   return (
@@ -306,8 +506,8 @@ export default function ExcelPage() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            استيراد وتصدير بيانات المركز بسهولة
-            باستخدام ملفات Excel.
+            استيراد وتصدير بيانات المركز بسهولة مع
+            مراجعة البيانات قبل اعتمادها.
           </p>
         </div>
 
@@ -324,10 +524,9 @@ export default function ExcelPage() {
             </h2>
 
             <p className="mt-1 text-xs leading-6 text-blue-700">
-              تأكد من أن الملف يحتوي على الأعمدة
-              المطلوبة وبالصيغة الصحيحة. يمكنك
-              استخدام القوالب الجاهزة لتجنب أخطاء
-              الاستيراد.
+              ارفع الملف ثم راجع المعاينة والطلاب
+              المتعرف عليهم والبيانات المكررة أو
+              غير المعروفة قبل الاعتماد.
             </p>
           </div>
         </section>
@@ -341,24 +540,30 @@ export default function ExcelPage() {
             </h2>
 
             <p className="mt-1 text-xs text-slate-400">
-              قم برفع ملف Excel لإضافة البيانات إلى
-              النظام.
+              اختر نوع البيانات ثم ارفع ملف Excel.
             </p>
           </div>
 
-          <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-5 grid gap-4 sm:grid-cols-2">
             {importOptions.map((option) => (
               <ImportType
                 key={option.value}
                 label={option.label}
+                description={option.description}
                 active={
                   importType === option.value
                 }
                 onClick={() => {
-                  setImportType(
-                    option.value,
-                  );
+                  setImportType(option.value);
+                  setSelectedFile(null);
+                  setPreviewRows([]);
+                  setShowPreview(false);
+                  setImportStatus("ready");
                   setError("");
+
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                  }
                 }}
                 icon={option.icon}
               />
@@ -473,13 +678,13 @@ export default function ExcelPage() {
           {importStatus === "imported" && (
             <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-700">
               <FiCheckCircle size={15} />
-              تم استيراد الملف بنجاح.
+              تم اعتماد البيانات بنجاح.
             </div>
           )}
 
           {/* Actions */}
 
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={
@@ -487,94 +692,333 @@ export default function ExcelPage() {
               }
               className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
             >
-              تحميل قالب CSV
+              تحميل القالب
             </button>
 
             <button
               type="button"
               disabled={
                 !selectedFile ||
-                importStatus ===
-                  "importing"
+                isPreviewLoading
+              }
+              onClick={createPreview}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-5 text-xs font-semibold text-teal-700 transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              <FiFileText size={15} />
+
+              {isPreviewLoading
+                ? "جاري تجهيز المعاينة..."
+                : "معاينة البيانات"}
+            </button>
+
+            <button
+              type="button"
+              disabled={
+                !selectedFile ||
+                !showPreview ||
+                importStatus === "importing" ||
+                validPreviewRows.length === 0
               }
               onClick={handleImport}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              <FiUpload size={15} />
+              <FiCheck size={15} />
 
               {importStatus === "importing"
-                ? "جاري الاستيراد..."
-                : "استيراد البيانات"}
+                ? "جاري الاعتماد..."
+                : "اعتماد البيانات"}
             </button>
           </div>
         </section>
 
-        {/* Export */}
+        {/* Preview */}
+
+        {showPreview && (
+          <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    معاينة البيانات
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    راجع النتائج قبل اعتماد الاستيراد.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <PreviewStat
+                    label="تم التعرف"
+                    value={validPreviewRows.length}
+                    type="success"
+                  />
+
+                  <PreviewStat
+                    label="غير معروف"
+                    value={unknownCount}
+                    type="warning"
+                  />
+
+                  <PreviewStat
+                    label="مكرر"
+                    value={duplicateCount}
+                    type="warning"
+                  />
+
+                  <PreviewStat
+                    label="أخطاء"
+                    value={errorCount}
+                    type="error"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-right">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/70">
+                    {getPreviewHeaders(importType).map(
+                      (header) => (
+                        <th
+                          key={header}
+                          className="px-5 py-3 text-xs font-semibold text-slate-500"
+                        >
+                          {header}
+                        </th>
+                      ),
+                    )}
+
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                      الحالة
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {previewRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={
+                          getPreviewHeaders(
+                            importType,
+                          ).length + 1
+                        }
+                        className="px-5 py-10 text-center text-xs text-slate-400"
+                      >
+                        لا توجد بيانات للمعاينة.
+                      </td>
+                    </tr>
+                  ) : (
+                    previewRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-slate-100 last:border-0"
+                      >
+                        {row.values.map(
+                          (value, index) => (
+                            <td
+                              key={`${row.id}-${index}`}
+                              className="px-5 py-4 text-xs text-slate-600"
+                            >
+                              {value}
+                            </td>
+                          ),
+                        )}
+
+                        <td className="px-5 py-4">
+                          <div>
+                            <PreviewBadge
+                              status={row.status}
+                            />
+
+                            {row.message && (
+                              <p className="mt-1 text-[10px] text-slate-400">
+                                {row.message}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* Export All Students */}
 
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-5">
             <h2 className="text-base font-bold text-slate-900">
-              تصدير البيانات
+              تصدير الطلاب
             </h2>
 
             <p className="mt-1 text-xs text-slate-400">
-              اختر نوع البيانات التي تريد تصديرها.
+              تصدير بيانات جميع الطلاب أو طالب محدد.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {exportOptions.map((option) => {
-              const Icon = option.icon;
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  جميع الطلاب
+                </h3>
 
-              return (
-                <div
-                  key={option.type}
-                  className="group rounded-xl border border-slate-200 p-4 transition hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/30 hover:shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition group-hover:bg-teal-50 group-hover:text-teal-600">
-                      <Icon size={18} />
-                    </div>
+                <p className="mt-1 text-xs text-slate-400">
+                  تصدير بيانات جميع الطلاب المسجلين.
+                </p>
+              </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleExport(
-                          option.type,
-                        )
-                      }
-                      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-white hover:text-teal-600"
-                      title="تصدير"
-                      aria-label={`تصدير ${option.title}`}
-                    >
-                      <FiDownload size={16} />
-                    </button>
-                  </div>
+              <button
+                type="button"
+                disabled={exportLoading}
+                onClick={
+                  handleExportAllStudents
+                }
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <FiDownload size={15} />
 
-                  <h3 className="mt-4 text-sm font-bold text-slate-800">
-                    {option.title}
-                  </h3>
+                {exportLoading
+                  ? "جاري التصدير..."
+                  : "Export All Students"}
+              </button>
+            </div>
+          </div>
+        </section>
 
-                  <p className="mt-1 min-h-10 text-[11px] leading-5 text-slate-400">
-                    {option.description}
+        {/* Export Selected Student */}
+
+        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-base font-bold text-slate-900">
+              تصدير طالب محدد
+            </h2>
+
+            <p className="mt-1 text-xs text-slate-400">
+              ابحث بالاسم أو Student ID أو رقم ولي
+              الأمر ثم اختر الطالب.
+            </p>
+          </div>
+
+          <div className="relative">
+            <FiSearch
+              size={16}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+
+            <input
+              type="text"
+              value={studentSearch}
+              onChange={(event) => {
+                setStudentSearch(event.target.value);
+                setSelectedStudent(null);
+              }}
+              placeholder="ابحث باسم الطالب أو Student ID أو رقم ولي الأمر..."
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white pr-10 pl-4 text-xs text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-50"
+            />
+          </div>
+
+          {studentSearch && (
+            <div className="mt-3 overflow-hidden rounded-lg border border-slate-200">
+              {filteredStudents.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <FiUser
+                    size={20}
+                    className="mx-auto text-slate-300"
+                  />
+
+                  <p className="mt-2 text-xs font-semibold text-slate-500">
+                    لم يتم العثور على طالب.
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleExport(
-                        option.type,
-                      )
-                    }
-                    className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-teal-600 transition hover:text-teal-700"
-                  >
-                    <FiDownload size={14} />
-                    تصدير CSV
-                  </button>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    جرّب الاسم أو Student ID أو رقم ولي
+                    الأمر.
+                  </p>
                 </div>
-              );
-            })}
-          </div>
+              ) : (
+                filteredStudents.map(
+                  (student) => (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedStudent(
+                          student,
+                        )
+                      }
+                      className={[
+                        "flex w-full items-center justify-between gap-4 border-b border-slate-100 px-4 py-3 text-right transition last:border-0",
+                        selectedStudent?.id ===
+                        student.id
+                          ? "bg-teal-50"
+                          : "hover:bg-slate-50",
+                      ].join(" ")}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                          <FiUser size={16} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-slate-700">
+                            {student.name}
+                          </p>
+
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            {student.studentId}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="shrink-0 text-[10px] text-slate-400">
+                        {student.guardianPhone}
+                      </span>
+                    </button>
+                  ),
+                )
+              )}
+            </div>
+          )}
+
+          {selectedStudent && (
+            <div className="mt-4 flex flex-col gap-4 rounded-xl border border-teal-100 bg-teal-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-teal-600">
+                  <FiUser size={18} />
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold text-slate-800">
+                    {selectedStudent.name}
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    {selectedStudent.studentId} •{" "}
+                    {selectedStudent.guardianPhone}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={exportLoading}
+                onClick={
+                  handleExportSelectedStudent
+                }
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <FiDownload size={15} />
+                تصدير بيانات الطالب
+              </button>
+            </div>
+          )}
         </section>
 
         {/* History */}
@@ -586,82 +1030,97 @@ export default function ExcelPage() {
             </h2>
 
             <p className="mt-1 text-xs text-slate-400">
-              آخر عمليات استيراد البيانات.
+              آخر عمليات استيراد الطلاب والدرجات.
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[750px] text-right">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70">
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الملف
-                  </th>
+          {history.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <FiFileText
+                size={22}
+                className="mx-auto text-slate-300"
+              />
 
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    النوع
-                  </th>
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                لا توجد عمليات استيراد حتى الآن.
+              </p>
 
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    التاريخ
-                  </th>
+              <p className="mt-1 text-[10px] text-slate-400">
+                ستظهر عمليات الاستيراد هنا بعد اعتمادها.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[750px] text-right">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/70">
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                      الملف
+                    </th>
 
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    السجلات
-                  </th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                      النوع
+                    </th>
 
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الحالة
-                  </th>
-                </tr>
-              </thead>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                      التاريخ
+                    </th>
 
-              <tbody>
-                {history.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                          <FiFileText
-                            size={15}
-                          />
-                        </div>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                      السجلات
+                    </th>
 
-                        <span className="text-xs font-semibold text-slate-700">
-                          {item.fileName}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                        {typeLabels[item.type]}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-xs text-slate-500">
-                      {item.date}
-                    </td>
-
-                    <td className="px-5 py-4 text-xs font-semibold text-slate-700">
-                      {item.records === 0
-                        ? "—"
-                        : item.records}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <ImportStatusBadge
-                        status={item.status}
-                      />
-                    </td>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                      الحالة
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody>
+                  {history.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-slate-100 last:border-0"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                            <FiFileText
+                              size={15}
+                            />
+                          </div>
+
+                          <span className="text-xs font-semibold text-slate-700">
+                            {item.fileName}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                          {typeLabels[item.type]}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-xs text-slate-500">
+                        {item.date}
+                      </td>
+
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-700">
+                        {item.records}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <ImportStatusBadge
+                          status={item.status}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
     </main>
@@ -674,11 +1133,13 @@ export default function ExcelPage() {
 
 function ImportType({
   label,
+  description,
   active,
   onClick,
   icon,
 }: {
   label: string;
+  description: string;
   active: boolean;
   onClick: () => void;
   icon: ReactNode;
@@ -688,7 +1149,7 @@ function ImportType({
       type="button"
       onClick={onClick}
       className={[
-        "flex items-center gap-3 rounded-lg border p-3 text-right transition",
+        "flex items-center gap-3 rounded-lg border p-4 text-right transition",
         active
           ? "border-teal-200 bg-teal-50 text-teal-700"
           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
@@ -697,7 +1158,7 @@ function ImportType({
     >
       <span
         className={[
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
           active
             ? "bg-white text-teal-600"
             : "bg-slate-100 text-slate-500",
@@ -706,15 +1167,90 @@ function ImportType({
         {icon}
       </span>
 
-      <span className="text-xs font-semibold">
-        {label}
+      <span className="min-w-0">
+        <span className="block text-xs font-semibold">
+          {label}
+        </span>
+
+        <span className="mt-1 block text-[10px] leading-5 text-slate-400">
+          {description}
+        </span>
       </span>
     </button>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Status Badge                                                               */
+/* Preview Stat                                                               */
+/* -------------------------------------------------------------------------- */
+
+function PreviewStat({
+  label,
+  value,
+  type,
+}: {
+  label: string;
+  value: number;
+  type: "success" | "warning" | "error";
+}) {
+  const styles = {
+    success:
+      "border-emerald-100 bg-emerald-50 text-emerald-700",
+    warning:
+      "border-amber-100 bg-amber-50 text-amber-700",
+    error:
+      "border-red-100 bg-red-50 text-red-700",
+  };
+
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 ${styles[type]}`}
+    >
+      <p className="text-[10px] font-medium">
+        {label}
+      </p>
+
+      <p className="mt-0.5 text-sm font-bold">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preview Badge                                                              */
+/* -------------------------------------------------------------------------- */
+
+function PreviewBadge({
+  status,
+}: {
+  status: PreviewStatus;
+}) {
+  const styles: Record<
+    PreviewStatus,
+    string
+  > = {
+    recognized:
+      "bg-emerald-50 text-emerald-700",
+    unknown:
+      "bg-amber-50 text-amber-700",
+    duplicate:
+      "bg-orange-50 text-orange-700",
+    error:
+      "bg-red-50 text-red-700",
+  };
+
+  return (
+    <span
+      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${styles[status]}`}
+    >
+      {previewStatusLabels[status]}
+    </span>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Import Status Badge                                                        */
 /* -------------------------------------------------------------------------- */
 
 function ImportStatusBadge({
@@ -726,8 +1262,7 @@ function ImportStatusBadge({
     ImportStatus,
     string
   > = {
-    ready:
-      "bg-slate-100 text-slate-600",
+    ready: "bg-slate-100 text-slate-600",
     importing:
       "bg-blue-50 text-blue-700",
     imported:
@@ -749,9 +1284,7 @@ function ImportStatusBadge({
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function formatFileSize(
-  bytes: number,
-) {
+function formatFileSize(bytes: number) {
   if (bytes < 1024) {
     return `${bytes} B`;
   }
@@ -774,53 +1307,67 @@ function getTemplateHeaders(
     string[]
   > = {
     students: [
-      "الاسم",
-      "رقم الهاتف",
-      "هاتف ولي الأمر",
-      "المرحلة",
+      "اسم الطالب",
+      "Student ID",
+      "رقم هاتف الطالب",
+      "رقم ولي الأمر",
+      "الصف",
       "المجموعة",
+      "العنوان",
+      "ملاحظات",
     ],
-    groups: [
-      "اسم المجموعة",
-      "المادة",
-      "المدرس",
-      "المرحلة",
-    ],
-    payments: [
-      "الطالب",
-      "المبلغ",
-      "المدفوع",
-      "المتبقي",
-      "التاريخ",
-    ],
-    attendance: [
-      "الطالب",
-      "التاريخ",
-      "الحالة",
-      "وقت الحضور",
-      "وقت الانصراف",
+    grades: [
+      "Student ID",
+      "اسم الطالب",
+      "الدرجة",
+      "الدرجة النهائية",
     ],
   };
 
   return templates[type];
 }
 
-function getExportHeaders(
+function getPreviewHeaders(
   type: ImportType,
 ) {
-  return getTemplateHeaders(type);
+  if (type === "students") {
+    return [
+      "اسم الطالب",
+      "Student ID",
+      "رقم الهاتف",
+      "رقم ولي الأمر",
+    ];
+  }
+
+  return [
+    "Student ID",
+    "اسم الطالب",
+    "الدرجة",
+    "الدرجة النهائية",
+  ];
 }
 
 function downloadCsv(
   headers: string[],
   fileName: string,
+  rows: string[][] = [],
 ) {
+  const csvRows = [
+    headers,
+    ...rows,
+  ];
+
   const csvContent =
     "\uFEFF" +
-    headers
-      .map((header) => escapeCsvValue(header))
-      .join(",") +
-    "\n";
+    csvRows
+      .map((row) =>
+        row
+          .map((value) =>
+            escapeCsvValue(value),
+          )
+          .join(","),
+      )
+      .join("\n");
 
   const blob = new Blob(
     [csvContent],
@@ -845,9 +1392,7 @@ function downloadCsv(
   URL.revokeObjectURL(url);
 }
 
-function escapeCsvValue(
-  value: string,
-) {
+function escapeCsvValue(value: string) {
   return `"${value.replaceAll(
     '"',
     '""',

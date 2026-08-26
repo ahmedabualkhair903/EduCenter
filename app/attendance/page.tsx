@@ -1,38 +1,113 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
 import {
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  FiAlertCircle,
   FiCalendar,
+  FiCheck,
   FiCheckCircle,
   FiChevronDown,
   FiClock,
-  FiDownload,
+  FiLock,
   FiLogOut,
+  FiMapPin,
+  FiPlay,
+  FiRefreshCw,
   FiSearch,
+  FiShield,
   FiUserCheck,
-  FiUserX,
   FiUsers,
+  FiX,
 } from "react-icons/fi";
 
-import type { AttendanceStatus } from "@/types/attendance";
+import type {
+  AttendanceRecord,
+  AttendanceSessionStatus,
+  AttendanceStatus,
+  SuspiciousAttendanceCase,
+} from "@/types";
 
-type AttendanceTableRecord = {
+/* -------------------------------------------------------------------------- */
+/* Local UI Types                                                             */
+/* -------------------------------------------------------------------------- */
+
+type GroupOption = {
   id: string;
-  studentId: string;
-  groupId: string;
-  lessonId: string;
-
-  student: string;
-  phone: string;
-  group: string;
+  name: string;
   subject: string;
-
-  status: AttendanceStatus;
-  checkIn: string;
-  checkOut: string;
+  studentsCount: number;
 };
 
-const initialRecords: AttendanceTableRecord[] = [
+type LessonOption = {
+  id: string;
+  groupId: string;
+  title: string;
+  time: string;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Mock UI Data                                                               */
+/* -------------------------------------------------------------------------- */
+
+const groups: GroupOption[] = [
+  {
+    id: "group-a",
+    name: "مجموعة أ",
+    subject: "الرياضيات",
+    studentsCount: 32,
+  },
+  {
+    id: "group-b",
+    name: "مجموعة ب",
+    subject: "اللغة الإنجليزية",
+    studentsCount: 28,
+  },
+  {
+    id: "group-c",
+    name: "مجموعة ج",
+    subject: "الفيزياء",
+    studentsCount: 24,
+  },
+  {
+    id: "group-d",
+    name: "مجموعة د",
+    subject: "الكيمياء",
+    studentsCount: 30,
+  },
+];
+
+const lessons: LessonOption[] = [
+  {
+    id: "lesson-1",
+    groupId: "group-a",
+    title: "حصة الرياضيات",
+    time: "04:00 م - 05:30 م",
+  },
+  {
+    id: "lesson-2",
+    groupId: "group-b",
+    title: "حصة اللغة الإنجليزية",
+    time: "05:00 م - 06:30 م",
+  },
+  {
+    id: "lesson-3",
+    groupId: "group-c",
+    title: "حصة الفيزياء",
+    time: "06:00 م - 07:30 م",
+  },
+  {
+    id: "lesson-4",
+    groupId: "group-d",
+    title: "حصة الكيمياء",
+    time: "08:00 م - 09:30 م",
+  },
+];
+
+const initialAttendance: AttendanceRecord[] = [
   {
     id: "attendance-1",
     studentId: "student-1",
@@ -40,11 +115,10 @@ const initialRecords: AttendanceTableRecord[] = [
     lessonId: "lesson-1",
     student: "محمد أحمد علي",
     phone: "01012345678",
-    group: "مجموعة أ",
-    subject: "الرياضيات",
     status: "present",
-    checkIn: "03:52 م",
-    checkOut: "05:05 م",
+    checkedInAt: "2026-08-26T15:52:00",
+    deviceId: "DEVICE-204",
+    locationStatus: "allowed",
   },
   {
     id: "attendance-2",
@@ -53,302 +127,347 @@ const initialRecords: AttendanceTableRecord[] = [
     lessonId: "lesson-1",
     student: "أحمد محمد حسن",
     phone: "01123456789",
-    group: "مجموعة أ",
-    subject: "الرياضيات",
     status: "present",
-    checkIn: "03:58 م",
-    checkOut: "05:03 م",
+    checkedInAt: "2026-08-26T15:58:00",
+    deviceId: "DEVICE-204",
+    locationStatus: "allowed",
   },
   {
     id: "attendance-3",
     studentId: "student-3",
-    groupId: "group-b",
-    lessonId: "lesson-2",
+    groupId: "group-a",
+    lessonId: "lesson-1",
     student: "سارة محمود",
     phone: "01234567890",
-    group: "مجموعة ب",
-    subject: "اللغة الإنجليزية",
     status: "late",
-    checkIn: "05:47 م",
-    checkOut: "06:40 م",
+    checkedInAt: "2026-08-26T16:17:00",
+    deviceId: "DEVICE-310",
+    locationStatus: "allowed",
   },
   {
     id: "attendance-4",
     studentId: "student-4",
-    groupId: "group-c",
-    lessonId: "lesson-3",
+    groupId: "group-a",
+    lessonId: "lesson-1",
     student: "يوسف خالد",
     phone: "01098765432",
-    group: "مجموعة ج",
-    subject: "الفيزياء",
-    status: "absent",
-    checkIn: "-",
-    checkOut: "-",
+    status: "present",
+    checkedInAt: "2026-08-26T16:21:00",
+    deviceId: "DEVICE-411",
+    locationStatus: "allowed",
   },
   {
     id: "attendance-5",
     studentId: "student-5",
-    groupId: "group-d",
-    lessonId: "lesson-4",
-    student: "نور أحمد",
-    phone: "01199887766",
-    group: "مجموعة د",
-    subject: "الكيمياء",
-    status: "present",
-    checkIn: "08:22 م",
-    checkOut: "09:28 م",
-  },
-  {
-    id: "attendance-6",
-    studentId: "student-6",
-    groupId: "group-c",
-    lessonId: "lesson-3",
-    student: "عمر محمد",
-    phone: "01211223344",
-    group: "مجموعة ج",
-    subject: "الفيزياء",
-    status: "unrecorded",
-    checkIn: "-",
-    checkOut: "-",
-  },
-  {
-    id: "attendance-7",
-    studentId: "student-7",
-    groupId: "group-b",
-    lessonId: "lesson-2",
-    student: "ملك أحمد",
-    phone: "01055667788",
-    group: "مجموعة ب",
-    subject: "اللغة الإنجليزية",
-    status: "present",
-    checkIn: "05:21 م",
-    checkOut: "06:32 م",
-  },
-  {
-    id: "attendance-8",
-    studentId: "student-8",
     groupId: "group-a",
     lessonId: "lesson-1",
-    student: "عبد الرحمن سامي",
-    phone: "01122334455",
-    group: "مجموعة أ",
-    subject: "الرياضيات",
-    status: "late",
-    checkIn: "04:17 م",
-    checkOut: "05:08 م",
+    student: "نور أحمد",
+    phone: "01199887766",
+    status: "present",
+    checkedInAt: "2026-08-26T16:25:00",
+    deviceId: "DEVICE-512",
+    locationStatus: "allowed",
   },
 ];
 
-const groups = [
-  "الكل",
-  "مجموعة أ",
-  "مجموعة ب",
-  "مجموعة ج",
-  "مجموعة د",
-] as const;
+const initialSuspicious: SuspiciousAttendanceCase[] = [
+  {
+    id: "suspicious-1",
+    attendanceIds: [
+      "attendance-1",
+      "attendance-2",
+    ],
+    studentIds: [
+      "student-1",
+      "student-2",
+    ],
+    studentNames: [
+      "محمد أحمد علي",
+      "أحمد محمد حسن",
+    ],
+    deviceId: "DEVICE-204",
+    reason:
+      "تم تسجيل أكثر من طالب من نفس الجهاز خلال فترة قصيرة.",
+    detectedAt:
+      "2026-08-26T16:03:00",
+    status: "pending",
+  },
+];
 
-const statuses = [
-  "الكل",
-  "present",
-  "absent",
-  "late",
-  "unrecorded",
-] as const;
-
-type StatusFilter = (typeof statuses)[number];
-
-const statusLabels: Record<StatusFilter, string> = {
-  الكل: "الكل",
-  present: "حاضر",
-  absent: "غائب",
-  late: "متأخر",
-  unrecorded: "لم يسجل",
-};
+/* -------------------------------------------------------------------------- */
+/* Page                                                                       */
+/* -------------------------------------------------------------------------- */
 
 export default function AttendancePage() {
-  const [records, setRecords] =
-    useState<AttendanceTableRecord[]>(initialRecords);
+  const [selectedGroupId, setSelectedGroupId] =
+    useState("group-a");
 
-  const [search, setSearch] = useState("");
-
-  const [groupFilter, setGroupFilter] =
-    useState<string>("الكل");
-
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>("الكل");
+  const [selectedLessonId, setSelectedLessonId] =
+    useState("lesson-1");
 
   const [date, setDate] =
-    useState("2026-08-23");
+    useState("2026-08-26");
 
-  const filteredRecords = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const [sessionStatus, setSessionStatus] =
+    useState<AttendanceSessionStatus>("closed");
 
-    return records.filter((record) => {
-      const searchableText = [
-        record.student,
-        record.phone,
-        record.group,
-        record.subject,
-      ]
-        .join(" ")
+  const [attendance, setAttendance] =
+    useState<AttendanceRecord[]>(
+      initialAttendance,
+    );
+
+  const [suspicious, setSuspicious] =
+    useState<SuspiciousAttendanceCase[]>(
+      initialSuspicious,
+    );
+
+  const [search, setSearch] =
+    useState("");
+
+  const [passwordEnabled, setPasswordEnabled] =
+    useState(true);
+
+  const [sessionPassword, setSessionPassword] =
+    useState("2468");
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [isLoading, setIsLoading] =
+    useState(false);
+
+  const [locationStatus] =
+    useState<
+      "allowed" | "outside" | "unknown"
+    >("allowed");
+
+  const selectedGroup =
+    groups.find(
+      (group) =>
+        group.id === selectedGroupId,
+    ) ?? groups[0];
+
+  const availableLessons = useMemo(
+    () =>
+      lessons.filter(
+        (lesson) =>
+          lesson.groupId ===
+          selectedGroupId,
+      ),
+    [selectedGroupId],
+  );
+
+  const selectedLesson =
+    lessons.find(
+      (lesson) =>
+        lesson.id ===
+        selectedLessonId,
+    ) ?? availableLessons[0];
+
+  const sessionAttendance =
+    useMemo(
+      () =>
+        attendance.filter(
+          (record) =>
+            record.groupId ===
+              selectedGroupId &&
+            record.lessonId ===
+              selectedLessonId,
+        ),
+      [
+        attendance,
+        selectedGroupId,
+        selectedLessonId,
+      ],
+    );
+
+  const filteredAttendance =
+    useMemo(() => {
+      const query = search
+        .trim()
         .toLowerCase();
 
-      const matchesSearch =
-        !query || searchableText.includes(query);
+      if (!query) {
+        return sessionAttendance;
+      }
 
-      const matchesGroup =
-        groupFilter === "الكل" ||
-        record.group === groupFilter;
-
-      const matchesStatus =
-        statusFilter === "الكل" ||
-        record.status === statusFilter;
-
-      return (
-        matchesSearch &&
-        matchesGroup &&
-        matchesStatus
+      return sessionAttendance.filter(
+        (record) =>
+          [
+            record.student ?? "",
+            record.phone ?? "",
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(query),
       );
-    });
-  }, [
-    records,
-    search,
-    groupFilter,
-    statusFilter,
-  ]);
+    }, [sessionAttendance, search]);
 
-  const presentCount = records.filter(
-    (record) => record.status === "present",
-  ).length;
+  const registeredCount =
+    sessionAttendance.filter(
+      (record) =>
+        record.status === "present" ||
+        record.status === "late",
+    ).length;
 
-  const absentCount = records.filter(
-    (record) => record.status === "absent",
-  ).length;
+  const presentCount =
+    sessionAttendance.filter(
+      (record) =>
+        record.status === "present",
+    ).length;
 
-  const lateCount = records.filter(
-    (record) => record.status === "late",
-  ).length;
+  const lateCount =
+    sessionAttendance.filter(
+      (record) =>
+        record.status === "late",
+    ).length;
 
-  const notRecordedCount = records.filter(
-    (record) => record.status === "unrecorded",
-  ).length;
+  const absentCount =
+    sessionAttendance.filter(
+      (record) =>
+        record.status === "absent",
+    ).length;
 
-  const checkIn = (
-    id: string,
-    status: "present" | "late",
+  const pendingSuspicious =
+    suspicious.filter(
+      (item) =>
+        item.status === "pending",
+    ).length;
+
+  const openSession = () => {
+    setError("");
+    setIsLoading(true);
+    setSessionStatus("loading");
+
+    window.setTimeout(() => {
+      setIsLoading(false);
+      setSessionStatus("open");
+    }, 500);
+  };
+
+  const closeSession = () => {
+    setError("");
+    setIsLoading(true);
+    setSessionStatus("loading");
+
+    window.setTimeout(() => {
+      setIsLoading(false);
+      setSessionStatus("closed");
+    }, 500);
+  };
+
+  const handleGroupChange = (
+    groupId: string,
   ) => {
-    setRecords((current) =>
-      current.map((record) => {
-        if (record.id !== id) {
-          return record;
-        }
+    setSelectedGroupId(groupId);
 
-        return {
-          ...record,
-          status,
-          checkIn:
-            record.checkIn === "-"
-              ? getCurrentTime()
-              : record.checkIn,
-        };
-      }),
+    const firstLesson =
+      lessons.find(
+        (lesson) =>
+          lesson.groupId ===
+          groupId,
+      );
+
+    if (firstLesson) {
+      setSelectedLessonId(
+        firstLesson.id,
+      );
+    }
+  };
+
+  const updateAttendanceStatus = (
+    id: string,
+    status: AttendanceStatus,
+  ) => {
+    setAttendance((current) =>
+      current.map((record) =>
+        record.id === id
+          ? {
+              ...record,
+              status,
+              checkedInAt:
+                status === "present" ||
+                status === "late"
+                  ? record.checkedInAt ??
+                    new Date().toISOString()
+                  : record.checkedInAt,
+            }
+          : record,
+      ),
     );
   };
 
-  const checkOut = (id: string) => {
-    setRecords((current) =>
-      current.map((record) => {
-        if (record.id !== id) {
-          return record;
-        }
-
-        const canCheckOut =
-          record.checkIn !== "-" &&
-          record.status !== "absent" &&
-          record.status !== "unrecorded";
-
-        if (!canCheckOut) {
-          return record;
-        }
-
-        return {
-          ...record,
-          checkOut:
-            record.checkOut === "-"
-              ? getCurrentTime()
-              : record.checkOut,
-        };
-      }),
+  const checkOutStudent = (
+    id: string,
+  ) => {
+    setAttendance((current) =>
+      current.map((record) =>
+        record.id === id
+          ? {
+              ...record,
+              checkedOutAt:
+                record.checkedOutAt ??
+                new Date().toISOString(),
+            }
+          : record,
+      ),
     );
   };
 
-  const markAbsent = (id: string) => {
-    setRecords((current) =>
-      current.map((record) => {
-        if (record.id !== id) {
-          return record;
-        }
-
-        return {
-          ...record,
-          status: "absent",
-          checkIn: "-",
-          checkOut: "-",
-        };
-      }),
+  const approveSuspicious = (
+    id: string,
+  ) => {
+    setSuspicious((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status: "approved",
+            }
+          : item,
+      ),
     );
   };
 
-  const markAllPresent = () => {
-    const currentTime = getCurrentTime();
-
-    setRecords((current) =>
-      current.map((record) => ({
-        ...record,
-        status: "present",
-        checkIn:
-          record.checkIn === "-"
-            ? currentTime
-            : record.checkIn,
-      })),
+  const rejectSuspicious = (
+    id: string,
+  ) => {
+    setSuspicious((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status: "rejected",
+            }
+          : item,
+      ),
     );
   };
 
-  const exportAttendance = () => {
-    const header =
-      "الطالب,رقم الهاتف,المجموعة,المادة,الحالة,وقت الدخول,وقت الخروج";
-
-    const rows = records.map((record) =>
-      [
-        record.student,
-        record.phone,
-        record.group,
-        record.subject,
-        getStatusLabel(record.status),
-        record.checkIn,
-        record.checkOut,
-      ]
-        .map((value) => `"${escapeCsvValue(value)}"`)
-        .join(","),
+  const addSuspiciousNote = (
+    id: string,
+  ) => {
+    const note = window.prompt(
+      "اكتب ملاحظة الحالة:",
     );
 
-    const csv = [header, ...rows].join("\n");
+    if (note === null) {
+      return;
+    }
 
-    const blob = new Blob(["\ufeff" + csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `attendance-${date}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    URL.revokeObjectURL(url);
+    setSuspicious((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              note: note.trim(),
+            }
+          : item,
+      ),
+    );
   };
 
   return (
@@ -374,464 +493,931 @@ export default function AttendancePage() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              تسجيل ومتابعة حضور الطلاب يوميًا.
+              إدارة جلسات الحضور ومتابعة
+              تسجيل الطلاب والحالات
+              التي تحتاج إلى مراجعة.
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={markAllPresent}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-500/10"
-            >
-              <FiCheckCircle size={16} />
-              تسجيل الكل حاضر
-            </button>
-
-            <button
-              type="button"
-              onClick={exportAttendance}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-teal-500/20"
-            >
-              <FiDownload size={16} />
-              تصدير التقرير
-            </button>
-          </div>
+          <SessionStatusBadge
+            status={sessionStatus}
+          />
         </div>
 
-        {/* Date */}
+        {/* Session Setup */}
 
-        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-                <FiCalendar size={18} />
-              </div>
+        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-base font-bold text-slate-900">
+              إعداد جلسة الحضور
+            </h2>
 
-              <div>
-                <p className="text-xs text-slate-400">
-                  تاريخ الحضور
-                </p>
-
-                <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                  {formatArabicDate(date)}
-                </p>
-              </div>
-            </div>
-
-            <input
-              type="date"
-              value={date}
-              onChange={(event) =>
-                setDate(event.target.value)
-              }
-              aria-label="تاريخ الحضور"
-              className="field w-full md:w-44"
-            />
+            <p className="mt-1 text-xs text-slate-400">
+              اختر المجموعة والحصة
+              والتاريخ قبل فتح الجلسة.
+            </p>
           </div>
-        </section>
 
-        {/* Stats */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <SelectField
+              label="المجموعة"
+              value={selectedGroupId}
+              onChange={
+                handleGroupChange
+              }
+              options={groups.map(
+                (group) => ({
+                  value: group.id,
+                  label: `${group.name} — ${group.subject}`,
+                }),
+              )}
+            />
 
-        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <AttendanceStat
-            icon={<FiUserCheck size={19} />}
-            label="حاضر"
-            value={presentCount}
-            className="text-emerald-600"
-          />
+            <SelectField
+              label="الحصة"
+              value={
+                selectedLesson?.id ??
+                ""
+              }
+              onChange={
+                setSelectedLessonId
+              }
+              options={availableLessons.map(
+                (lesson) => ({
+                  value: lesson.id,
+                  label: `${lesson.title} — ${lesson.time}`,
+                }),
+              )}
+            />
 
-          <AttendanceStat
-            icon={<FiUserX size={19} />}
-            label="غائب"
-            value={absentCount}
-            className="text-red-500"
-          />
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                التاريخ
+              </label>
 
-          <AttendanceStat
-            icon={<FiClock size={19} />}
-            label="متأخر"
-            value={lateCount}
-            className="text-amber-600"
-          />
-
-          <AttendanceStat
-            icon={<FiUsers size={19} />}
-            label="لم يسجل"
-            value={notRecordedCount}
-            className="text-slate-600"
-          />
-        </section>
-
-        {/* Attendance Table */}
-
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {/* Filters */}
-
-          <div className="border-b border-slate-100 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row">
-              <div className="relative flex-1">
-                <FiSearch
-                  size={17}
+              <div className="relative">
+                <FiCalendar
+                  size={15}
                   className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
 
                 <input
-                  type="search"
-                  value={search}
+                  type="date"
+                  value={date}
                   onChange={(event) =>
-                    setSearch(event.target.value)
+                    setDate(
+                      event.target.value,
+                    )
                   }
-                  placeholder="ابحث باسم الطالب أو رقم الهاتف..."
-                  aria-label="البحث في الحضور"
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pr-9 pl-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-9 pl-3 text-sm text-slate-600 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
                 />
               </div>
+            </div>
 
-              <Select
-                value={groupFilter}
-                onChange={setGroupFilter}
-                options={groups}
-                label="المجموعة"
-              />
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                حماية الحضور
+              </label>
 
-              <Select
-                value={statusFilter}
-                onChange={(value) =>
-                  setStatusFilter(
-                    value as StatusFilter,
+              <button
+                type="button"
+                onClick={() =>
+                  setPasswordEnabled(
+                    (current) =>
+                      !current,
                   )
                 }
-                options={statuses}
-                label="الحالة"
-                formatOption={(option) =>
-                  statusLabels[option as StatusFilter]
-                }
-              />
+                className={`flex h-10 w-full items-center justify-between rounded-lg border px-3 text-sm transition ${
+                  passwordEnabled
+                    ? "border-teal-200 bg-teal-50 text-teal-700"
+                    : "border-slate-200 bg-slate-50 text-slate-500"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <FiLock size={15} />
+                  حماية بكلمة مرور
+                </span>
+
+                <span
+                  className={`h-5 w-9 rounded-full p-0.5 transition ${
+                    passwordEnabled
+                      ? "bg-teal-600"
+                      : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`block h-4 w-4 rounded-full bg-white shadow-sm transition ${
+                      passwordEnabled
+                        ? "translate-x-4"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </span>
+              </button>
             </div>
           </div>
 
-          {/* Result */}
+          {passwordEnabled && (
+            <div className="mt-4 max-w-sm">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                كلمة مرور الحضور
+              </label>
 
-          <div className="border-b border-slate-100 px-5 py-3">
-            <p className="text-xs text-slate-400">
-              عرض{" "}
-              <span className="font-semibold text-slate-600">
-                {filteredRecords.length}
-              </span>{" "}
-              طالب
-            </p>
-          </div>
+              <div className="flex gap-2">
+                <input
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
+                  value={sessionPassword}
+                  onChange={(event) =>
+                    setSessionPassword(
+                      event.target.value,
+                    )
+                  }
+                  className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+                  placeholder="أدخل كلمة المرور"
+                />
 
-          {/* Table */}
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-right">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70">
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الطالب
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    المجموعة
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    المادة
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الحالة
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الدخول
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الخروج
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    تسجيل
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredRecords.map((record) => {
-                  const canCheckOut =
-                    record.checkIn !== "-" &&
-                    record.status !== "absent" &&
-                    record.status !== "unrecorded";
-
-                  const hasCheckedOut =
-                    record.checkOut !== "-";
-
-                  return (
-                    <tr
-                      key={record.id}
-                      className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
-                    >
-                      {/* Student */}
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                            {getInitials(record.student)}
-                          </div>
-
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">
-                              {record.student}
-                            </p>
-
-                            <p
-                              dir="ltr"
-                              className="mt-0.5 text-right text-[10px] text-slate-400"
-                            >
-                              {record.phone}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Group */}
-
-                      <td className="px-5 py-4">
-                        <span className="text-sm text-slate-600">
-                          {record.group}
-                        </span>
-                      </td>
-
-                      {/* Subject */}
-
-                      <td className="px-5 py-4">
-                        <span className="text-sm text-slate-600">
-                          {record.subject}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-
-                      <td className="px-5 py-4">
-                        <StatusBadge
-                          status={record.status}
-                        />
-                      </td>
-
-                      {/* Check In */}
-
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                          <FiClock
-                            size={13}
-                            className="text-slate-400"
-                          />
-
-                          {record.checkIn}
-                        </span>
-                      </td>
-
-                      {/* Check Out */}
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                            hasCheckedOut
-                              ? "text-slate-600"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          <FiLogOut size={13} />
-                          {record.checkOut}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1.5">
-                          {/* Present */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              checkIn(
-                                record.id,
-                                "present",
-                              )
-                            }
-                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus:outline-none focus:ring-4 focus:ring-emerald-500/10 ${
-                              record.status === "present"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-slate-100 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
-                            }`}
-                            aria-label="تسجيل حضور"
-                            title="تسجيل حضور"
-                          >
-                            <FiCheckCircle size={15} />
-                          </button>
-
-                          {/* Absent */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              markAbsent(record.id)
-                            }
-                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus:outline-none focus:ring-4 focus:ring-red-500/10 ${
-                              record.status === "absent"
-                                ? "bg-red-100 text-red-600"
-                                : "bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                            }`}
-                            aria-label="تسجيل غياب"
-                            title="تسجيل غياب"
-                          >
-                            <FiUserX size={15} />
-                          </button>
-
-                          {/* Late */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              checkIn(
-                                record.id,
-                                "late",
-                              )
-                            }
-                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus:outline-none focus:ring-4 focus:ring-amber-500/10 ${
-                              record.status === "late"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-100 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
-                            }`}
-                            aria-label="تسجيل تأخير"
-                            title="تسجيل تأخير"
-                          >
-                            <FiClock size={15} />
-                          </button>
-
-                          {/* Check Out */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              checkOut(record.id)
-                            }
-                            disabled={
-                              !canCheckOut ||
-                              hasCheckedOut
-                            }
-                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus:outline-none focus:ring-4 focus:ring-teal-500/10 ${
-                              hasCheckedOut
-                                ? "bg-teal-100 text-teal-700"
-                                : canCheckOut
-                                  ? "bg-slate-100 text-slate-400 hover:bg-teal-50 hover:text-teal-600"
-                                  : "cursor-not-allowed bg-slate-50 text-slate-300"
-                            }`}
-                            aria-label="تسجيل خروج"
-                            title={
-                              hasCheckedOut
-                                ? "تم تسجيل الخروج"
-                                : canCheckOut
-                                  ? "تسجيل خروج"
-                                  : "يجب تسجيل الدخول أولًا"
-                            }
-                          >
-                            <FiLogOut size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {filteredRecords.length === 0 && (
-              <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <FiSearch size={20} />
-                </div>
-
-                <h3 className="mt-4 text-sm font-bold text-slate-800">
-                  لا توجد نتائج
-                </h3>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  جرّب تغيير البحث أو الفلاتر.
-                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword(
+                      (current) =>
+                        !current,
+                    )
+                  }
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                >
+                  {showPassword
+                    ? "إخفاء"
+                    : "عرض"}
+                </button>
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-xs font-medium text-red-600">
+              <FiAlertCircle size={15} />
+              {error}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <FiClock size={14} />
+
+              <span>
+                {selectedLesson?.time ??
+                  "لا توجد حصة محددة"}
+              </span>
+            </div>
+
+            {sessionStatus ===
+            "open" ? (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={
+                  closeSession
+                }
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-500 px-5 text-xs font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isLoading ? (
+                  <FiRefreshCw
+                    size={15}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <FiX size={16} />
+                )}
+
+                إغلاق الحضور
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={
+                  openSession
+                }
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isLoading ? (
+                  <FiRefreshCw
+                    size={15}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <FiPlay size={15} />
+                )}
+
+                فتح الحضور
+              </button>
             )}
           </div>
+        </section>
 
-          {/* Footer */}
+        {/* Closed */}
 
-          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
-            <p className="text-xs text-slate-400">
-              إجمالي الطلاب:{" "}
-              <span className="font-semibold text-slate-600">
-                {filteredRecords.length}
-              </span>
+        {sessionStatus ===
+          "closed" && (
+          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+              <FiLock size={22} />
+            </div>
+
+            <h2 className="mt-4 text-sm font-bold text-slate-800">
+              الحضور مغلق حاليًا
+            </h2>
+
+            <p className="mx-auto mt-1 max-w-md text-xs leading-6 text-slate-400">
+              اختر المجموعة والحصة
+              ثم اضغط "فتح الحضور"
+              لبدء جلسة تسجيل
+              الطلاب.
+            </p>
+          </section>
+        )}
+
+        {/* Loading */}
+
+        {sessionStatus ===
+          "loading" && (
+          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <FiRefreshCw
+              size={24}
+              className="mx-auto animate-spin text-teal-600"
+            />
+
+            <p className="mt-3 text-xs font-medium text-slate-500">
+              جاري تجهيز جلسة الحضور...
+            </p>
+          </section>
+        )}
+
+        {/* Error */}
+
+        {sessionStatus ===
+          "error" && (
+          <section className="mb-6 rounded-xl border border-red-100 bg-red-50 p-10 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-red-500">
+              <FiAlertCircle size={22} />
+            </div>
+
+            <h2 className="mt-4 text-sm font-bold text-red-800">
+              تعذر تحميل جلسة
+              الحضور
+            </h2>
+
+            <p className="mt-1 text-xs text-red-600">
+              حاول مرة أخرى.
             </p>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled
-                className="h-8 rounded-md border border-slate-200 px-3 text-xs text-slate-400 disabled:cursor-not-allowed"
-              >
-                السابق
-              </button>
+            <button
+              type="button"
+              onClick={() =>
+                setSessionStatus(
+                  "closed",
+                )
+              }
+              className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-white px-4 text-xs font-semibold text-red-600 shadow-sm"
+            >
+              <FiRefreshCw size={14} />
+              إعادة المحاولة
+            </button>
+          </section>
+        )}
 
-              <span className="flex h-8 min-w-8 items-center justify-center rounded-md bg-teal-600 px-2 text-xs font-semibold text-white">
-                1
-              </span>
+        {/* Open Session */}
 
-              <button
-                type="button"
-                disabled
-                className="h-8 rounded-md border border-slate-200 px-3 text-xs text-slate-400 disabled:cursor-not-allowed"
-              >
-                التالي
-              </button>
-            </div>
-          </div>
-        </section>
+        {sessionStatus ===
+          "open" && (
+          <>
+            {/* Stats */}
+
+            <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <AttendanceStat
+                icon={
+                  <FiUsers size={19} />
+                }
+                label="إجمالي طلاب المجموعة"
+                value={
+                  selectedGroup.studentsCount
+                }
+              />
+
+              <AttendanceStat
+                icon={
+                  <FiUserCheck
+                    size={19}
+                  />
+                }
+                label="تم التسجيل"
+                value={
+                  registeredCount
+                }
+                className="text-emerald-600"
+              />
+
+              <AttendanceStat
+                icon={
+                  <FiCheckCircle
+                    size={19}
+                  />
+                }
+                label="حاضر"
+                value={
+                  presentCount
+                }
+                className="text-teal-600"
+              />
+
+              <AttendanceStat
+                icon={
+                  <FiClock size={19} />
+                }
+                label="متأخر"
+                value={lateCount}
+                className="text-amber-600"
+              />
+
+              <AttendanceStat
+                icon={
+                  <FiUsers size={19} />
+                }
+                label="غائب"
+                value={absentCount}
+                className="text-red-600"
+              />
+            </section>
+
+            {/* Session Information */}
+
+            <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_340px]">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+
+                      <span className="text-xs font-semibold text-emerald-600">
+                        الحضور مفتوح الآن
+                      </span>
+                    </div>
+
+                    <h2 className="mt-2 text-base font-bold text-slate-900">
+                      {
+                        selectedGroup.name
+                      }
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      {
+                        selectedGroup.subject
+                      }
+                      {" — "}
+                      {
+                        selectedLesson?.title
+                      }
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-slate-50 px-4 py-3 text-center">
+                    <p className="text-[10px] text-slate-400">
+                      تاريخ الجلسة
+                    </p>
+
+                    <p className="mt-1 text-xs font-semibold text-slate-700">
+                      {formatArabicDate(
+                        date,
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <InfoItem
+                    icon={
+                      <FiUsers size={15} />
+                    }
+                    label="الطلاب"
+                    value={`${selectedGroup.studentsCount} طالب`}
+                  />
+
+                  <InfoItem
+                    icon={
+                      <FiClock size={15} />
+                    }
+                    label="الحصة"
+                    value={
+                      selectedLesson?.time ??
+                      "—"
+                    }
+                  />
+
+                  <InfoItem
+                    icon={
+                      <FiMapPin size={15} />
+                    }
+                    label="الموقع"
+                    value={
+                      locationStatus ===
+                      "allowed"
+                        ? "متاح"
+                        : locationStatus ===
+                            "outside"
+                          ? "خارج النطاق"
+                          : "غير محدد"
+                    }
+                    valueClassName={
+                      locationStatus ===
+                      "allowed"
+                        ? "text-emerald-600"
+                        : "text-red-600"
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* QR */}
+
+              <div className="rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+                <div className="flex items-center justify-center gap-2">
+                  <FiShield
+                    size={16}
+                    className="text-teal-600"
+                  />
+
+                  <h2 className="text-sm font-bold text-slate-800">
+                    رمز الحضور
+                  </h2>
+                </div>
+
+                <div className="mx-auto mt-4 flex h-36 w-36 items-center justify-center rounded-xl border-2 border-slate-200 bg-slate-50">
+                  <QrPlaceholder />
+                </div>
+
+                <p className="mt-3 text-[11px] leading-5 text-slate-400">
+                  رمز تجريبي للواجهة
+                  وسيتم توليده وإدارته
+                  من الـBackend لاحقًا.
+                </p>
+
+                {passwordEnabled && (
+                  <div className="mt-3 rounded-lg bg-teal-50 px-3 py-2">
+                    <p className="text-[10px] text-teal-600">
+                      كلمة مرور الحضور
+                    </p>
+
+                    <p className="mt-0.5 text-sm font-bold tracking-[0.25em] text-teal-800">
+                      {sessionPassword}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Live Attendance */}
+
+            <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 p-4 sm:p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800">
+                      التسجيل المباشر
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      متابعة حالة كل طالب
+                      وإجراء تسجيل الحضور
+                      أو الانصراف.
+                    </p>
+                  </div>
+
+                  <div className="relative w-full lg:w-72">
+                    <FiSearch
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+
+                    <input
+                      type="search"
+                      value={search}
+                      onChange={(event) =>
+                        setSearch(
+                          event.target.value,
+                        )
+                      }
+                      placeholder="ابحث عن طالب..."
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pr-9 pl-3 text-xs text-slate-700 outline-none focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {filteredAttendance.length >
+              0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-right">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70">
+                        <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                          الطالب
+                        </th>
+
+                        <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                          الحالة
+                        </th>
+
+                        <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                          وقت الدخول
+                        </th>
+
+                        <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                          وقت الانصراف
+                        </th>
+
+                        <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                          الموقع
+                        </th>
+
+                        <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                          الإجراءات
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {filteredAttendance.map(
+                        (record) => (
+                          <tr
+                            key={
+                              record.id
+                            }
+                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+                          >
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                                  {getInitials(
+                                    record.student ??
+                                      "طالب",
+                                  )}
+                                </div>
+
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {
+                                      record.student ??
+                                      "طالب"
+                                    }
+                                  </p>
+
+                                  {record.phone && (
+                                    <p className="mt-0.5 text-[11px] text-slate-400">
+                                      {
+                                        record.phone
+                                      }
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <AttendanceBadge
+                                status={
+                                  record.status
+                                }
+                              />
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <span className="text-xs font-medium text-slate-600">
+                                {formatTime(
+                                  record.checkedInAt,
+                                )}
+                              </span>
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <span className="text-xs font-medium text-slate-600">
+                                {formatTime(
+                                  record.checkedOutAt,
+                                )}
+                              </span>
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <LocationBadge
+                                status={
+                                  record.locationStatus
+                                }
+                              />
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {record.status !==
+                                  "present" && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateAttendanceStatus(
+                                        record.id,
+                                        "present",
+                                      )
+                                    }
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                                  >
+                                    <FiCheck
+                                      size={13}
+                                    />
+                                    حاضر
+                                  </button>
+                                )}
+
+                                {record.status !==
+                                  "late" && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateAttendanceStatus(
+                                        record.id,
+                                        "late",
+                                      )
+                                    }
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50"
+                                  >
+                                    <FiClock
+                                      size={13}
+                                    />
+                                    متأخر
+                                  </button>
+                                )}
+
+                                {record.status !==
+                                  "absent" && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateAttendanceStatus(
+                                        record.id,
+                                        "absent",
+                                      )
+                                    }
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 text-[11px] font-semibold text-red-600 hover:bg-red-50"
+                                  >
+                                    غائب
+                                  </button>
+                                )}
+
+                                {(record.status ===
+                                  "present" ||
+                                  record.status ===
+                                    "late") &&
+                                  !record.checkedOutAt && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        checkOutStudent(
+                                          record.id,
+                                        )
+                                      }
+                                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                                    >
+                                      <FiLogOut
+                                        size={13}
+                                      />
+                                      انصراف
+                                    </button>
+                                  )}
+                              </div>
+                            </td>
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState
+                  title="لا توجد تسجيلات"
+                  description="لم يتم تسجيل أي طالب حتى الآن."
+                  icon={
+                    <FiUsers size={20} />
+                  }
+                />
+              )}
+            </section>
+
+            {/* Suspicious Attendance */}
+
+            <section className="overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
+              <div className="border-b border-amber-100 bg-amber-50/60 p-4 sm:p-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                      <FiShield
+                        size={18}
+                      />
+                    </div>
+
+                    <div>
+                      <h2 className="text-sm font-bold text-amber-900">
+                        الحالات المشبوهة
+                      </h2>
+
+                      <p className="mt-1 text-xs text-amber-700">
+                        الحالات التي تحتاج
+                        إلى مراجعة قبل
+                        اعتمادها.
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="w-fit rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-amber-700">
+                    {pendingSuspicious.toLocaleString(
+                      "ar-EG",
+                    )}{" "}
+                    تحتاج مراجعة
+                  </span>
+                </div>
+              </div>
+
+              {suspicious.filter(
+                (item) =>
+                  item.status ===
+                  "pending",
+              ).length === 0 ? (
+                <EmptyState
+                  title="لا توجد حالات مشبوهة"
+                  description="لا توجد حاليًا أي حالات تحتاج إلى مراجعة."
+                  icon={
+                    <FiCheckCircle
+                      size={20}
+                    />
+                  }
+                />
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {suspicious
+                    .filter(
+                      (item) =>
+                        item.status ===
+                        "pending",
+                    )
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-5"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {(
+                                item.studentNames ??
+                                []
+                              ).map(
+                                (
+                                  studentName,
+                                ) => (
+                                  <span
+                                    key={
+                                      studentName
+                                    }
+                                    className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600"
+                                  >
+                                    {
+                                      studentName
+                                    }
+                                  </span>
+                                ),
+                              )}
+                            </div>
+
+                            <p className="mt-3 text-xs font-semibold text-slate-700">
+                              {
+                                item.reason
+                              }
+                            </p>
+
+                            <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-slate-400">
+                              {item.deviceId && (
+                                <span>
+                                  الجهاز:{" "}
+                                  {
+                                    item.deviceId
+                                  }
+                                </span>
+                              )}
+
+                              <span>
+                                الوقت:{" "}
+                                {formatTime(
+                                  item.detectedAt,
+                                )}
+                              </span>
+                            </div>
+
+                            {item.note && (
+                              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+                                ملاحظة:{" "}
+                                {
+                                  item.note
+                                }
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                approveSuspicious(
+                                  item.id,
+                                )
+                              }
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                            >
+                              <FiCheck
+                                size={14}
+                              />
+                              اعتماد
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                rejectSuspicious(
+                                  item.id,
+                                )
+                              }
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                            >
+                              <FiX
+                                size={14}
+                              />
+                              رفض
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                addSuspiciousNote(
+                                  item.id,
+                                )
+                              }
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                              إضافة ملاحظة
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </div>
     </main>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Components                                                                  */
+/* Components                                                                 */
 /* -------------------------------------------------------------------------- */
 
 function AttendanceStat({
   icon,
   label,
   value,
-  className,
+  className = "text-slate-700",
 }: {
   icon: ReactNode;
   label: string;
   value: number;
-  className: string;
+  className?: string;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs text-slate-500">
             {label}
           </p>
 
           <p
             className={`mt-1 text-2xl font-bold ${className}`}
           >
-            {value.toLocaleString("ar-EG")}
+            {value.toLocaleString(
+              "ar-EG",
+            )}
           </p>
         </div>
 
@@ -845,80 +1431,121 @@ function AttendanceStat({
   );
 }
 
-function Select({
+function SelectField({
+  label,
   value,
   onChange,
   options,
-  label,
-  formatOption,
 }: {
-  value: string;
-  onChange: (value: string) => void;
-  options: readonly string[];
   label: string;
-  formatOption?: (option: string) => string;
+  value: string;
+  onChange: (
+    value: string,
+  ) => void;
+  options: Array<{
+    value: string;
+    label: string;
+  }>;
 }) {
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        aria-label={label}
-        className="h-10 min-w-36 appearance-none rounded-lg border border-slate-200 bg-white px-3 pl-9 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
-      >
-        {options.map((option) => (
-          <option
-            key={option}
-            value={option}
-          >
-            {formatOption
-              ? formatOption(option)
-              : option === "الكل"
-                ? `كل ${label}`
-                : option}
-          </option>
-        ))}
-      </select>
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+        {label}
+      </label>
 
-      <FiChevronDown
-        size={15}
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-      />
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(event) =>
+            onChange(
+              event.target.value,
+            )
+          }
+          className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 pl-9 text-xs text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+        >
+          {options.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <FiChevronDown
+          size={15}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        />
+      </div>
     </div>
   );
 }
 
-function StatusBadge({
+function SessionStatusBadge({
   status,
 }: {
-  status: AttendanceStatus;
+  status: AttendanceSessionStatus;
 }) {
-  const styles: Record<AttendanceStatus, string> = {
-    present: "bg-emerald-50 text-emerald-700",
-    absent: "bg-red-50 text-red-600",
-    late: "bg-amber-50 text-amber-700",
-    excused: "bg-blue-50 text-blue-700",
-    unrecorded: "bg-slate-100 text-slate-500",
-  };
+  if (status === "open") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+        الحضور مفتوح
+      </span>
+    );
+  }
+
+  if (status === "loading") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700">
+        <FiRefreshCw
+          size={12}
+          className="animate-spin"
+        />
+        جاري التحميل
+      </span>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-700">
+        <FiAlertCircle size={12} />
+        خطأ
+      </span>
+    );
+  }
 
   return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${styles[status]}`}
-    >
-      {getStatusLabel(status)}
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
+      <FiLock size={12} />
+      الحضور مغلق
     </span>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                     */
-/* -------------------------------------------------------------------------- */
+function AttendanceBadge({
+  status,
+}: {
+  status: AttendanceStatus;
+}) {
+  const styles: Record<
+    AttendanceStatus,
+    string
+  > = {
+    present:
+      "bg-emerald-50 text-emerald-700",
+    absent:
+      "bg-red-50 text-red-600",
+    late:
+      "bg-amber-50 text-amber-700",
+    excused:
+      "bg-blue-50 text-blue-700",
+    unrecorded:
+      "bg-slate-100 text-slate-500",
+  };
 
-function getStatusLabel(
-  status: AttendanceStatus,
-) {
   const labels: Record<
     AttendanceStatus,
     string
@@ -930,43 +1557,201 @@ function getStatusLabel(
     unrecorded: "لم يسجل",
   };
 
-  return labels[status];
+  return (
+    <span
+      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${styles[status]}`}
+    >
+      {labels[status]}
+    </span>
+  );
 }
 
-function escapeCsvValue(value: string) {
-  return value.replace(/"/g, '""');
+function LocationBadge({
+  status,
+}: {
+  status?:
+    | "allowed"
+    | "outside"
+    | "unknown";
+}) {
+  if (status === "allowed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+        <FiMapPin size={11} />
+        داخل النطاق
+      </span>
+    );
+  }
+
+  if (status === "outside") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600">
+        <FiMapPin size={11} />
+        خارج النطاق
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+      <FiMapPin size={11} />
+      غير محدد
+    </span>
+  );
 }
 
-function getInitials(name: string) {
+function InfoItem({
+  icon,
+  label,
+  value,
+  valueClassName = "text-slate-700",
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+      <div className="flex items-center gap-2 text-slate-400">
+        {icon}
+
+        <span className="text-[10px]">
+          {label}
+        </span>
+      </div>
+
+      <p
+        className={`mt-1 text-xs font-semibold ${valueClassName}`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function EmptyState({
+  title,
+  description,
+  icon,
+}: {
+  title: string;
+  description: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        {icon}
+      </div>
+
+      <h3 className="mt-4 text-sm font-bold text-slate-800">
+        {title}
+      </h3>
+
+      <p className="mt-1 max-w-sm text-xs leading-5 text-slate-400">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function QrPlaceholder() {
+  const blocks = [
+    1, 1, 0, 1, 0, 1, 1, 1,
+    1, 0, 1, 0, 1, 0, 1, 0,
+    0, 1, 1, 1, 0, 1, 0, 1,
+    1, 0, 1, 1, 1, 0, 1, 1,
+    0, 1, 0, 1, 0, 1, 1, 0,
+    1, 1, 1, 0, 1, 0, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0,
+    0, 1, 0, 1, 1, 0, 1, 1,
+  ];
+
+  return (
+    <div className="grid w-28 grid-cols-8 gap-0.5 rounded-md bg-white p-1">
+      {blocks.map(
+        (block, index) => (
+          <span
+            key={index}
+            className={`aspect-square ${
+              block
+                ? "bg-slate-900"
+                : "bg-white"
+            }`}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function getInitials(
+  name: string,
+) {
   return name
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map((word) => word.charAt(0))
+    .map((word) =>
+      word.charAt(0),
+    )
     .join("");
 }
 
-function getCurrentTime() {
-  return new Intl.DateTimeFormat("ar-EG", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date());
+function formatTime(
+  value?: string,
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsedDate =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      parsedDate.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "ar-EG",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    },
+  ).format(parsedDate);
 }
 
-function formatArabicDate(date: string) {
+function formatArabicDate(
+  date: string,
+) {
   const parsedDate = new Date(
     `${date}T12:00:00`,
   );
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (
+    Number.isNaN(
+      parsedDate.getTime(),
+    )
+  ) {
     return date;
   }
 
-  return new Intl.DateTimeFormat("ar-EG", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(parsedDate);
+  return new Intl.DateTimeFormat(
+    "ar-EG",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    },
+  ).format(parsedDate);
 }

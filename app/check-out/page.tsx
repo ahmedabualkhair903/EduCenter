@@ -10,6 +10,15 @@ import {
   FiUsers,
 } from "react-icons/fi";
 
+import type {
+  AttendanceRecord,
+  AttendanceStatus,
+} from "@/types/attendance";
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
 type CheckOutRecord = {
   id: string;
   studentId: string;
@@ -25,6 +34,18 @@ type CheckOutRecord = {
   checkOut: string;
 };
 
+type CheckOutStatus = "inside" | "checked-out";
+
+/* -------------------------------------------------------------------------- */
+/* Mock Data                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * بيانات تجريبية مؤقتة.
+ *
+ * عند ربط Backend لاحقًا، يتم استبدال هذه البيانات بمصدر Attendance Service
+ * بدون الحاجة لتغيير واجهة الصفحة أو منطق تسجيل الانصراف.
+ */
 const initialRecords: CheckOutRecord[] = [
   {
     id: "attendance-1",
@@ -106,7 +127,11 @@ const groups = [
   "مجموعة ب",
   "مجموعة ج",
   "مجموعة د",
-];
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/* Page                                                                       */
+/* -------------------------------------------------------------------------- */
 
 export default function CheckOutPage() {
   const [records, setRecords] =
@@ -114,7 +139,14 @@ export default function CheckOutPage() {
 
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] =
-    useState("الكل");
+    useState<string>("الكل");
+
+  const [isLoading] = useState(false);
+  const [error] = useState("");
+
+  /* ------------------------------------------------------------------------ */
+  /* Derived Data                                                             */
+  /* ------------------------------------------------------------------------ */
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -122,6 +154,7 @@ export default function CheckOutPage() {
     return records.filter((record) => {
       const searchableText = [
         record.student,
+        record.studentId,
         record.phone,
         record.group,
         record.subject,
@@ -141,12 +174,18 @@ export default function CheckOutPage() {
   }, [records, search, groupFilter]);
 
   const insideCount = records.filter(
-    (record) => record.checkOut === "-",
+    (record) =>
+      hasCheckIn(record) &&
+      !hasCheckOut(record),
   ).length;
 
   const checkedOutCount = records.filter(
-    (record) => record.checkOut !== "-",
+    (record) => hasCheckOut(record),
   ).length;
+
+  /* ------------------------------------------------------------------------ */
+  /* Actions                                                                  */
+  /* ------------------------------------------------------------------------ */
 
   const checkOutStudent = (id: string) => {
     setRecords((current) =>
@@ -156,8 +195,8 @@ export default function CheckOutPage() {
         }
 
         if (
-          record.checkIn === "-" ||
-          record.checkOut !== "-"
+          !hasCheckIn(record) ||
+          hasCheckOut(record)
         ) {
           return record;
         }
@@ -180,8 +219,8 @@ export default function CheckOutPage() {
     setRecords((current) =>
       current.map((record) => {
         if (
-          record.checkIn === "-" ||
-          record.checkOut !== "-"
+          !hasCheckIn(record) ||
+          hasCheckOut(record)
         ) {
           return record;
         }
@@ -193,6 +232,74 @@ export default function CheckOutPage() {
       }),
     );
   };
+
+  const clearFilters = () => {
+    setSearch("");
+    setGroupFilter("الكل");
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Loading                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  if (isLoading) {
+    return (
+      <main
+        dir="rtl"
+        className="min-h-screen bg-slate-50"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mb-6">
+            <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+
+            <div className="mt-4 h-8 w-64 animate-pulse rounded bg-slate-200" />
+
+            <div className="mt-2 h-4 w-80 animate-pulse rounded bg-slate-200" />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white"
+              />
+            ))}
+          </div>
+
+          <div className="mt-6 h-96 animate-pulse rounded-xl border border-slate-200 bg-white" />
+        </div>
+      </main>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Error                                                                    */
+  /* ------------------------------------------------------------------------ */
+
+  if (error) {
+    return (
+      <main
+        dir="rtl"
+        className="min-h-screen bg-slate-50"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center">
+            <h1 className="text-sm font-bold text-red-700">
+              تعذر تحميل بيانات الانصراف
+            </h1>
+
+            <p className="mt-2 text-xs text-red-600">
+              {error}
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <main
@@ -206,18 +313,25 @@ export default function CheckOutPage() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
               <span>الرئيسية</span>
+
               <span>/</span>
+
+              <span>الحضور</span>
+
+              <span>/</span>
+
               <span className="text-teal-600">
-                الحضور والانصراف
+                الانصراف
               </span>
             </div>
 
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              الحضور والانصراف
+              تسجيل الانصراف
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              متابعة الطلاب الموجودين داخل المركز وتسجيل وقت الانصراف.
+              متابعة الطلاب الموجودين داخل المركز وتسجيل
+              وقت الانصراف بدقة.
             </p>
           </div>
 
@@ -228,6 +342,7 @@ export default function CheckOutPage() {
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-teal-500/20 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
             <FiLogOut size={16} />
+
             تسجيل خروج الكل
           </button>
         </div>
@@ -243,7 +358,7 @@ export default function CheckOutPage() {
           />
 
           <StatCard
-            icon={<FiCheckCircle size={19} />}
+            icon={<FiClock size={19} />}
             label="داخل المركز"
             value={insideCount}
             className="text-teal-600"
@@ -257,7 +372,63 @@ export default function CheckOutPage() {
           />
         </section>
 
-        {/* Table */}
+        {/* Current Status */}
+
+        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                  insideCount > 0
+                    ? "bg-teal-50 text-teal-600"
+                    : "bg-emerald-50 text-emerald-600"
+                }`}
+              >
+                {insideCount > 0 ? (
+                  <FiUsers size={18} />
+                ) : (
+                  <FiCheckCircle size={18} />
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs text-slate-400">
+                  حالة الانصراف الحالية
+                </p>
+
+                <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                  {insideCount > 0
+                    ? `يوجد ${insideCount.toLocaleString(
+                        "ar-EG",
+                      )} طالب داخل المركز`
+                    : "تم تسجيل انصراف جميع الطلاب"}
+                </p>
+              </div>
+            </div>
+
+            <span
+              className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                insideCount > 0
+                  ? "bg-teal-50 text-teal-700"
+                  : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  insideCount > 0
+                    ? "bg-teal-500"
+                    : "bg-emerald-500"
+                }`}
+              />
+
+              {insideCount > 0
+                ? "متابعة الانصراف"
+                : "لا يوجد طلاب بالداخل"}
+            </span>
+          </div>
+        </section>
+
+        {/* Main Table */}
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Filters */}
@@ -276,7 +447,7 @@ export default function CheckOutPage() {
                   onChange={(event) =>
                     setSearch(event.target.value)
                   }
-                  placeholder="ابحث باسم الطالب أو رقم الهاتف..."
+                  placeholder="ابحث باسم الطالب أو رقم الطالب أو رقم الهاتف..."
                   aria-label="البحث في سجل الانصراف"
                   className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pr-9 pl-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
                 />
@@ -323,182 +494,242 @@ export default function CheckOutPage() {
             </p>
           </div>
 
-          {/* Table */}
+          {/* Empty State */}
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[950px] text-right">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70">
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الطالب
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    المجموعة
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    المادة
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الدخول
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الخروج
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الحالة
-                  </th>
-
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-500">
-                    الإجراء
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredRecords.map((record) => {
-                  const checkedOut =
-                    record.checkOut !== "-";
-
-                  return (
-                    <tr
-                      key={record.id}
-                      className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                            {getInitials(record.student)}
-                          </div>
-
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">
-                              {record.student}
-                            </p>
-
-                            <p
-                              dir="ltr"
-                              className="mt-0.5 text-right text-[10px] text-slate-400"
-                            >
-                              {record.phone}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span className="text-sm text-slate-600">
-                          {record.group}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span className="text-sm text-slate-600">
-                          {record.subject}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                          <FiClock
-                            size={13}
-                            className="text-slate-400"
-                          />
-
-                          {record.checkIn}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={[
-                            "text-xs font-medium",
-                            checkedOut
-                              ? "text-slate-600"
-                              : "text-slate-400",
-                          ].join(" ")}
-                        >
-                          {record.checkOut}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        {checkedOut ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                            <FiCheckCircle size={12} />
-                            تم الانصراف
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
-                            داخل المركز
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        {checkedOut ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                            <FiCheckCircle size={14} />
-                            تم التسجيل
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              checkOutStudent(record.id)
-                            }
-                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-slate-100 px-3 text-xs font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-teal-500/10"
-                          >
-                            <FiLogOut size={14} />
-                            تسجيل الخروج
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {filteredRecords.length === 0 && (
-              <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <FiSearch size={20} />
-                </div>
-
-                <h3 className="mt-4 text-sm font-bold text-slate-800">
-                  لا توجد نتائج
-                </h3>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  جرّب تغيير البحث أو المجموعة.
-                </p>
+          {filteredRecords.length === 0 ? (
+            <div className="flex min-h-72 flex-col items-center justify-center px-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                <FiSearch size={20} />
               </div>
-            )}
-          </div>
 
-          {/* Footer */}
+              <h3 className="mt-4 text-sm font-bold text-slate-800">
+                لا توجد نتائج
+              </h3>
 
-          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
-            <p className="text-xs text-slate-400">
-              الطلاب الموجودون داخل المركز:{" "}
-              <span className="font-semibold text-slate-600">
-                {insideCount}
-              </span>
-            </p>
+              <p className="mt-1 text-xs text-slate-400">
+                جرّب تغيير البحث أو المجموعة.
+              </p>
 
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 items-center gap-1.5 rounded-md bg-teal-50 px-3 text-xs font-semibold text-teal-700">
-                <FiUsers size={13} />
-                متابعة الانصراف
-              </span>
+              {(search || groupFilter !== "الكل") && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-4 text-xs font-semibold text-teal-600 hover:text-teal-700"
+                >
+                  مسح الفلاتر
+                </button>
+              )}
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Table */}
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[950px] text-right">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/70">
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        الطالب
+                      </th>
+
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        المجموعة
+                      </th>
+
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        المادة
+                      </th>
+
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        الدخول
+                      </th>
+
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        الخروج
+                      </th>
+
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        الحالة
+                      </th>
+
+                      <th className="px-5 py-3 text-xs font-semibold text-slate-500">
+                        الإجراء
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredRecords.map((record) => {
+                      const status = getCheckOutStatus(
+                        record,
+                      );
+
+                      const checkedOut =
+                        status === "checked-out";
+
+                      return (
+                        <tr
+                          key={record.id}
+                          className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
+                        >
+                          {/* Student */}
+
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                                {getInitials(
+                                  record.student,
+                                )}
+                              </div>
+
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                  {record.student}
+                                </p>
+
+                                <div className="mt-0.5 flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-400">
+                                    {record.studentId}
+                                  </span>
+
+                                  <span className="text-slate-300">
+                                    •
+                                  </span>
+
+                                  <span
+                                    dir="ltr"
+                                    className="text-right text-[10px] text-slate-400"
+                                  >
+                                    {record.phone}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Group */}
+
+                          <td className="px-5 py-4">
+                            <span className="text-sm text-slate-600">
+                              {record.group}
+                            </span>
+                          </td>
+
+                          {/* Subject */}
+
+                          <td className="px-5 py-4">
+                            <span className="text-sm text-slate-600">
+                              {record.subject}
+                            </span>
+                          </td>
+
+                          {/* Check In */}
+
+                          <td className="px-5 py-4">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                              <FiClock
+                                size={13}
+                                className="text-slate-400"
+                              />
+
+                              {record.checkIn}
+                            </span>
+                          </td>
+
+                          {/* Check Out */}
+
+                          <td className="px-5 py-4">
+                            <span
+                              className={[
+                                "inline-flex items-center gap-1.5 text-xs font-medium",
+                                checkedOut
+                                  ? "text-slate-600"
+                                  : "text-slate-400",
+                              ].join(" ")}
+                            >
+                              <FiLogOut size={13} />
+
+                              {record.checkOut}
+                            </span>
+                          </td>
+
+                          {/* Status */}
+
+                          <td className="px-5 py-4">
+                            {checkedOut ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                <FiCheckCircle
+                                  size={12}
+                                />
+
+                                تم الانصراف
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+
+                                داخل المركز
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Action */}
+
+                          <td className="px-5 py-4">
+                            {checkedOut ? (
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                                <FiCheckCircle
+                                  size={14}
+                                />
+
+                                تم التسجيل
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  checkOutStudent(
+                                    record.id,
+                                  )
+                                }
+                                disabled={
+                                  !hasCheckIn(record)
+                                }
+                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-slate-100 px-3 text-xs font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-teal-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300"
+                              >
+                                <FiLogOut size={14} />
+
+                                تسجيل الخروج
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer */}
+
+              <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-400">
+                  الطلاب الموجودون داخل المركز:{" "}
+                  <span className="font-semibold text-slate-600">
+                    {insideCount.toLocaleString(
+                      "ar-EG",
+                    )}
+                  </span>
+                </p>
+
+                <span className="flex w-fit items-center gap-1.5 rounded-md bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">
+                  <FiUsers size={13} />
+
+                  متابعة الانصراف
+                </span>
+              </div>
+            </>
+          )}
         </section>
 
         {/* Information */}
@@ -515,7 +746,27 @@ export default function CheckOutPage() {
               </p>
 
               <p className="mt-1 text-xs text-emerald-600">
-                لا يوجد حاليًا أي طالب مسجل كـ "داخل المركز".
+                لا يوجد حاليًا أي طالب مسجل كـ "داخل
+                المركز".
+              </p>
+            </div>
+          </div>
+        )}
+
+        {insideCount > 0 && (
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50 p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-teal-600">
+              <FiClock size={17} />
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-teal-800">
+                يوجد طلاب لم يسجلوا الانصراف بعد
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-teal-600">
+                يمكنك تسجيل الانصراف لكل طالب بشكل
+                منفصل أو استخدام زر "تسجيل خروج الكل".
               </p>
             </div>
           </div>
@@ -526,7 +777,7 @@ export default function CheckOutPage() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Components                                                                  */
+/* Components                                                                 */
 /* -------------------------------------------------------------------------- */
 
 function StatCard({
@@ -566,8 +817,41 @@ function StatCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Helpers                                                                     */
+/* Attendance Helpers                                                         */
 /* -------------------------------------------------------------------------- */
+
+function getCheckOutStatus(
+  record: CheckOutRecord,
+): CheckOutStatus {
+  return hasCheckOut(record)
+    ? "checked-out"
+    : "inside";
+}
+
+function hasCheckIn(record: CheckOutRecord) {
+  return (
+    Boolean(record.checkIn) &&
+    record.checkIn !== "-"
+  );
+}
+
+function hasCheckOut(record: CheckOutRecord) {
+  return (
+    Boolean(record.checkOut) &&
+    record.checkOut !== "-"
+  );
+}
+
+/**
+ * يحول الوقت الحالي إلى الشكل المستخدم في واجهة النظام.
+ */
+function getCurrentTime() {
+  return new Intl.DateTimeFormat("ar-EG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date());
+}
 
 function getInitials(name: string) {
   return name
@@ -576,12 +860,4 @@ function getInitials(name: string) {
     .slice(0, 2)
     .map((word) => word.charAt(0))
     .join("");
-}
-
-function getCurrentTime() {
-  return new Intl.DateTimeFormat("ar-EG", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date());
 }

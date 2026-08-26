@@ -14,6 +14,9 @@ import {
   FiUsers,
 } from "react-icons/fi";
 
+import { useAppSettings } from "@/components/providers";
+import type { ModuleKey } from "@/types";
+
 type ReportType =
   | "students"
   | "attendance"
@@ -26,43 +29,49 @@ type ReportCard = {
   title: string;
   description: string;
   icon: React.ReactNode;
+  module: ModuleKey;
+};
+
+type ReportRow = {
+  label: string;
+  value: string;
 };
 
 const reportCards: ReportCard[] = [
   {
     type: "students",
     title: "تقرير الطلاب",
-    description:
-      "ملخص بيانات الطلاب وحالتهم داخل المركز.",
+    description: "ملخص بيانات الطلاب وحالتهم داخل المركز.",
     icon: <FiUsers size={19} />,
+    module: "students",
   },
   {
     type: "attendance",
     title: "تقرير الحضور",
-    description:
-      "متابعة الحضور والغياب ونسب الالتزام.",
+    description: "متابعة الحضور والغياب ونسب الالتزام.",
     icon: <FiCheckCircle size={19} />,
+    module: "attendance",
   },
   {
     type: "payments",
     title: "التقرير المالي",
-    description:
-      "المدفوعات والمبالغ المحصلة والديون.",
+    description: "المدفوعات والمبالغ المحصلة والديون.",
     icon: <FiDollarSign size={19} />,
+    module: "payments",
   },
   {
     type: "groups",
     title: "تقرير المجموعات",
-    description:
-      "ملخص المجموعات والطلاب والحصص.",
+    description: "ملخص المجموعات والطلاب والحصص.",
     icon: <FiBookOpen size={19} />,
+    module: "groups",
   },
   {
     type: "exams",
     title: "تقرير الامتحانات",
-    description:
-      "نتائج الامتحانات ومتوسطات الطلاب.",
+    description: "نتائج الامتحانات ومتوسطات الطلاب.",
     icon: <FiFileText size={19} />,
+    module: "exams",
   },
 ];
 
@@ -78,54 +87,91 @@ const summaryData = {
     trend: "+3.2%",
   },
   payments: {
-    value: "184,500",
+    value: "184,500 ج.م",
     label: "إجمالي المحصل",
     trend: "+12.8%",
   },
   debts: {
-    value: "42,300",
+    value: "42,300 ج.م",
     label: "إجمالي الديون",
     trend: "-5.6%",
   },
 };
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState(
-    "هذا الشهر",
+  const { settings, isModuleEnabled } = useAppSettings();
+
+  const [period, setPeriod] = useState("هذا الشهر");
+
+  const availableReports = useMemo(
+    () =>
+      reportCards.filter((report) =>
+        isModuleEnabled(report.module),
+      ),
+    [isModuleEnabled, settings.modules],
   );
 
   const [activeReport, setActiveReport] =
     useState<ReportType>("students");
 
-  const selectedReport = useMemo(
-    () =>
-      reportCards.find(
-        (report) =>
-          report.type === activeReport,
-      ) ?? reportCards[0],
-    [activeReport],
-  );
+  const selectedReport = useMemo(() => {
+    const current = availableReports.find(
+      (report) => report.type === activeReport,
+    );
+
+    return current ?? availableReports[0];
+  }, [activeReport, availableReports]);
+
+  const handleReportChange = (type: ReportType) => {
+    setActiveReport(type);
+  };
 
   const handleExport = () => {
-    const csv = [
-      "التقرير,الفترة,القيمة",
-      `${selectedReport.title},${period},${getReportValue(
-        activeReport,
-      )}`,
-    ].join("\n");
+    if (!selectedReport) {
+      return;
+    }
 
-    const blob = new Blob([`\uFEFF${csv}`], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const rows = getReportRows(
+      selectedReport.type,
+      period,
+    );
 
-    const url =
-      URL.createObjectURL(blob);
+    const csvRows = [
+      ["التقرير", selectedReport.title],
+      ["الفترة", period],
+      [],
+      ["البيان", "القيمة"],
+      ...rows.map((row) => [
+        row.label,
+        row.value,
+      ]),
+    ];
 
-    const link =
-      document.createElement("a");
+    const csv = csvRows
+      .map((row) =>
+        row
+          .map((value) =>
+            `"${String(value ?? "").replace(
+              /"/g,
+              '""',
+            )}"`,
+          )
+          .join(","),
+      )
+      .join("\n");
+
+    const blob = new Blob(
+      [`\uFEFF${csv}`],
+      {
+        type: "text/csv;charset=utf-8;",
+      },
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
 
     link.href = url;
-    link.download = `report-${activeReport}.csv`;
+    link.download = `educenter-report-${selectedReport.type}.csv`;
 
     document.body.appendChild(link);
     link.click();
@@ -134,11 +180,68 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
+  /*
+   * إذا كان Module التقارير نفسه مغلقًا،
+   * لا نعرض محتوى التقارير.
+   *
+   * الـSidebar المفروض يخفي الرابط أيضًا،
+   * لكن هذا حماية إضافية على مستوى الصفحة.
+   */
+  if (!isModuleEnabled("reports")) {
+    return (
+      <main className="min-h-screen bg-slate-50">
+        <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+              <FiBarChart2 size={22} />
+            </div>
+
+            <h1 className="mt-5 text-lg font-bold text-slate-900">
+              التقارير غير مفعلة
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              وحدة التقارير غير مفعلة حاليًا من إعدادات
+              النظام. يمكنك تفعيلها من صفحة الإعدادات.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!selectedReport) {
+    return (
+      <main className="min-h-screen bg-slate-50">
+        <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+              <FiFileText size={22} />
+            </div>
+
+            <h1 className="mt-5 text-lg font-bold text-slate-900">
+              لا توجد تقارير متاحة
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              لا توجد Modules مفعلة يمكن استخدامها لإنشاء
+              التقارير حاليًا.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const reportRows = getReportRows(
+    selectedReport.type,
+    period,
+  );
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Header */}
-
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
@@ -154,8 +257,8 @@ export default function ReportsPage() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              متابعة أهم مؤشرات المركز واستخراج
-              التقارير الأساسية.
+              متابعة أهم مؤشرات المركز واستخراج التقارير
+              الأساسية.
             </p>
           </div>
 
@@ -169,22 +272,24 @@ export default function ReportsPage() {
               <select
                 value={period}
                 onChange={(event) =>
-                  setPeriod(
-                    event.target.value,
-                  )
+                  setPeriod(event.target.value)
                 }
+                aria-label="الفترة الزمنية"
                 className="h-10 min-w-36 appearance-none rounded-lg border border-slate-200 bg-white py-0 pl-9 pr-9 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
               >
-                <option>
+                <option value="هذا الشهر">
                   هذا الشهر
                 </option>
-                <option>
+
+                <option value="الشهر الماضي">
                   الشهر الماضي
                 </option>
-                <option>
+
+                <option value="هذا العام">
                   هذا العام
                 </option>
-                <option>
+
+                <option value="العام الماضي">
                   العام الماضي
                 </option>
               </select>
@@ -207,41 +312,26 @@ export default function ReportsPage() {
         </div>
 
         {/* Summary */}
-
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
-            label={
-              summaryData.students.label
-            }
+            label={summaryData.students.label}
             value={summaryData.students.value}
             trend={summaryData.students.trend}
             icon={<FiUsers size={18} />}
           />
 
           <SummaryCard
-            label={
-              summaryData.attendance.label
-            }
-            value={
-              summaryData.attendance.value
-            }
-            trend={
-              summaryData.attendance.trend
-            }
-            icon={
-              <FiCheckCircle size={18} />
-            }
+            label={summaryData.attendance.label}
+            value={summaryData.attendance.value}
+            trend={summaryData.attendance.trend}
+            icon={<FiCheckCircle size={18} />}
           />
 
           <SummaryCard
-            label={
-              summaryData.payments.label
-            }
+            label={summaryData.payments.label}
             value={summaryData.payments.value}
             trend={summaryData.payments.trend}
-            icon={
-              <FiDollarSign size={18} />
-            }
+            icon={<FiDollarSign size={18} />}
           />
 
           <SummaryCard
@@ -254,7 +344,6 @@ export default function ReportsPage() {
         </section>
 
         {/* Report selector */}
-
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-5">
             <h2 className="text-base font-bold text-slate-900">
@@ -267,17 +356,16 @@ export default function ReportsPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {reportCards.map((report) => {
+            {availableReports.map((report) => {
               const active =
-                report.type ===
-                activeReport;
+                report.type === activeReport;
 
               return (
                 <button
                   key={report.type}
                   type="button"
                   onClick={() =>
-                    setActiveReport(
+                    handleReportChange(
                       report.type,
                     )
                   }
@@ -320,7 +408,6 @@ export default function ReportsPage() {
         </section>
 
         {/* Main report */}
-
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex items-center gap-3">
@@ -339,8 +426,8 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
               بيانات تجريبية
             </div>
           </div>
@@ -350,14 +437,14 @@ export default function ReportsPage() {
               <ReportMetric
                 label="القيمة الأساسية"
                 value={getReportValue(
-                  activeReport,
+                  selectedReport.type,
                 )}
               />
 
               <ReportMetric
                 label="التغير عن الفترة السابقة"
                 value={getReportTrend(
-                  activeReport,
+                  selectedReport.type,
                 )}
               />
 
@@ -367,8 +454,7 @@ export default function ReportsPage() {
               />
             </div>
 
-            {/* Chart placeholder */}
-
+            {/* Chart */}
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-5">
               <div className="mb-5 flex items-center justify-between">
                 <div>
@@ -377,8 +463,7 @@ export default function ReportsPage() {
                   </h3>
 
                   <p className="mt-1 text-[11px] text-slate-400">
-                    عرض مبسط للمؤشر خلال الفترة
-                    المحددة.
+                    عرض مبسط للمؤشر خلال الفترة المحددة.
                   </p>
                 </div>
 
@@ -390,34 +475,22 @@ export default function ReportsPage() {
 
               <div className="flex h-48 items-end gap-3 rounded-lg border border-slate-200 bg-white px-4 py-5">
                 {[
-                  45,
-                  62,
-                  51,
-                  74,
-                  68,
-                  86,
-                  78,
-                  92,
-                  81,
-                  96,
-                  88,
-                  100,
-                ].map(
-                  (height, index) => (
+                  45, 62, 51, 74, 68, 86, 78, 92, 81, 96,
+                  88, 100,
+                ].map((height, index) => (
+                  <div
+                    key={index}
+                    className="flex h-full flex-1 items-end"
+                  >
                     <div
-                      key={index}
-                      className="flex h-full flex-1 items-end"
-                    >
-                      <div
-                        className="w-full rounded-t-md bg-teal-500/80 transition hover:bg-teal-600"
-                        style={{
-                          height: `${height}%`,
-                        }}
-                        title={`الأسبوع ${index + 1}`}
-                      />
-                    </div>
-                  ),
-                )}
+                      className="w-full rounded-t-md bg-teal-500/80 transition hover:bg-teal-600"
+                      style={{
+                        height: `${height}%`,
+                      }}
+                      title={`الأسبوع ${index + 1}`}
+                    />
+                  </div>
+                ))}
               </div>
 
               <div className="mt-3 flex justify-between text-[10px] text-slate-400">
@@ -427,7 +500,6 @@ export default function ReportsPage() {
             </div>
 
             {/* Table */}
-
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
               <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
                 <h3 className="text-sm font-bold text-slate-800">
@@ -435,8 +507,7 @@ export default function ReportsPage() {
                 </h3>
 
                 <p className="mt-1 text-[11px] text-slate-400">
-                  ملخص البيانات المرتبطة بالتقرير
-                  المحدد.
+                  ملخص البيانات المرتبطة بالتقرير المحدد.
                 </p>
               </div>
 
@@ -463,10 +534,7 @@ export default function ReportsPage() {
                   </thead>
 
                   <tbody>
-                    {getReportRows(
-                      activeReport,
-                      period,
-                    ).map((row) => (
+                    {reportRows.map((row) => (
                       <tr
                         key={row.label}
                         className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
@@ -498,7 +566,6 @@ export default function ReportsPage() {
         </section>
 
         {/* API note */}
-
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
@@ -511,11 +578,10 @@ export default function ReportsPage() {
               </h2>
 
               <p className="mt-1 max-w-3xl text-[11px] leading-5 text-slate-400">
-                البيانات المعروضة حاليًا تجريبية
-                بهدف تجهيز الواجهة. عند ربط
-                Backend يمكن استبدال مصدر البيانات
-                فقط دون تغيير تصميم الصفحة أو
-                تجربة المستخدم.
+                البيانات المعروضة حاليًا تجريبية بهدف تجهيز
+                الواجهة. عند ربط Backend يمكن استبدال مصدر
+                البيانات فقط دون تغيير تصميم الصفحة أو تجربة
+                المستخدم.
               </p>
             </div>
           </div>
@@ -598,9 +664,7 @@ function ReportMetric({
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function getReportValue(
-  type: ReportType,
-) {
+function getReportValue(type: ReportType): string {
   switch (type) {
     case "students":
       return "1,248";
@@ -622,9 +686,7 @@ function getReportValue(
   }
 }
 
-function getReportTrend(
-  type: ReportType,
-) {
+function getReportTrend(type: ReportType): string {
   switch (type) {
     case "students":
       return "+8.4%";
@@ -649,7 +711,7 @@ function getReportTrend(
 function getReportRows(
   type: ReportType,
   period: string,
-) {
+): ReportRow[] {
   void period;
 
   switch (type) {
