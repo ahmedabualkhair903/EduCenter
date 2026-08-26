@@ -4,3 +4,5 @@ export * from "./exam";
 export * from "./attendance";
 export * from "./message";
 export * from "./activity";
+export * from "./group";
+export * from "./settings";

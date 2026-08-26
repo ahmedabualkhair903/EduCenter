@@ -5,7 +5,13 @@ export type StudentActivityType =
   | "attendance"
   | "grade"
   | "message"
-  | "group";
+  | "group"
+  | "student_created"
+  | "student_updated"
+  | "payment_recorded"
+  | "attendance_recorded"
+  | "grade_updated"
+  | "message_sent";
 
 export type StudentActivity = {
   id: string;

@@ -110,7 +110,15 @@ const activityTypeIcons: Record<
   grade: <FiCalendar size={15} />,
   message: <FiMessageCircle size={15} />,
   group: <FiUser size={15} />,
+
+  student_created: <FiUser size={15} />,
+  student_updated: <FiEdit2 size={15} />,
+  payment_recorded: <FiCheckCircle size={15} />,
+  attendance_recorded: <FiClock size={15} />,
+  grade_updated: <FiCalendar size={15} />,
+  message_sent: <FiMessageCircle size={15} />,
 };
+
 const tabs = [
   {
     id: "overview",
@@ -293,9 +301,9 @@ export default function StudentProfile({
                         "active"
                           ? "bg-emerald-50 text-emerald-700"
                           : student.status ===
-                            "suspended"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-slate-100 text-slate-600"
+                              "suspended"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {statusLabel}
@@ -339,9 +347,7 @@ export default function StudentProfile({
 
                 <button
                   type="button"
-                  onClick={
-                    handleWhatsApp
-                  }
+                  onClick={handleWhatsApp}
                   disabled={
                     !student.guardianPhone
                   }
@@ -1041,9 +1047,7 @@ function AttendanceSection({
                 {attendance.map(
                   (record) => (
                     <tr
-                      key={
-                        record.id
-                      }
+                      key={record.id}
                       className="border-b border-slate-50 last:border-0"
                     >
                       <TableCell>
@@ -1155,9 +1159,9 @@ function MessagesSection({
                             "sent"
                               ? "bg-emerald-50 text-emerald-700"
                               : message.status ===
-                                "failed"
-                              ? "bg-red-50 text-red-600"
-                              : "bg-amber-50 text-amber-700"
+                                  "failed"
+                                ? "bg-red-50 text-red-600"
+                                : "bg-amber-50 text-amber-700"
                           }`}
                         >
                           {
@@ -1375,8 +1379,8 @@ function MiniFinance({
           warning
             ? "text-amber-600"
             : positive
-            ? "text-emerald-600"
-            : "text-slate-700"
+              ? "text-emerald-600"
+              : "text-slate-700"
         }`}
       >
         {value.toLocaleString(
