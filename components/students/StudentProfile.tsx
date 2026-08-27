@@ -12,7 +12,6 @@ import {
   FiClock,
   FiEdit2,
   FiMessageCircle,
-  FiPhone,
   FiUser,
   FiXCircle,
 } from "react-icons/fi";
@@ -85,6 +84,7 @@ const messageStatusLabels: Record<
 > = {
   draft: "مسودة",
   scheduled: "مجدولة",
+  pending: "قيد الانتظار",
   sent: "تم الإرسال",
   failed: "فشل الإرسال",
 };
@@ -97,6 +97,10 @@ const messageTypeLabels: Record<
   group: "مجموعة",
   notification: "إشعار",
   reminder: "تذكير",
+  attendance: "الحضور",
+  checkOut: "الانصراف",
+  examResult: "نتيجة اختبار",
+  absence: "غياب",
 };
 
 const activityTypeIcons: Record<
@@ -1161,7 +1165,10 @@ function MessagesSection({
                               : message.status ===
                                   "failed"
                                 ? "bg-red-50 text-red-600"
-                                : "bg-amber-50 text-amber-700"
+                                : message.status ===
+                                    "pending"
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-amber-50 text-amber-700"
                           }`}
                         >
                           {
