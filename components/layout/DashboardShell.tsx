@@ -14,9 +14,17 @@ export default function DashboardShell({
 children,
 }: DashboardShellProps) {
 const pathname = usePathname();
+
 const [sidebarOpen, setSidebarOpen] = useState(false);
 
-const isAuthPage = pathname === "/login";
+/*
+
+* Authentication pages should not contain
+* the dashboard layout.
+  */
+  const isAuthPage =
+  pathname === "/login" ||
+  pathname === "/register";
 
 const closeSidebar = () => {
 setSidebarOpen(false);
@@ -26,26 +34,19 @@ const toggleSidebar = () => {
 setSidebarOpen((current) => !current);
 };
 
-/*
-
-* Authentication pages should not contain
-* the dashboard layout.
-  */
-  if (isAuthPage) {
-  return <>{children}</>;
-  }
+if (isAuthPage) {
+return <>{children}</>;
+}
 
 return ( <div
    className="min-h-screen bg-slate-50"
    dir="rtl"
- > <div className="min-h-screen lg:flex">
-{/* Desktop Sidebar / Mobile Drawer */} <Sidebar
+ > <div className="min-h-screen lg:flex"> <Sidebar
        mobileOpen={sidebarOpen}
        onClose={closeSidebar}
      />
 
 ```
-    {/* Main Application Area */}
     <div className="flex min-w-0 flex-1 flex-col">
       <Header onMenuClick={toggleSidebar} />
 
