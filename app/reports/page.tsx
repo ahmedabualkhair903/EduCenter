@@ -37,45 +37,59 @@ type ReportRow = {
   value: string;
 };
 
+type SummaryItem = {
+  value: string;
+  label: string;
+  trend: string;
+};
+
 const reportCards: ReportCard[] = [
   {
     type: "students",
     title: "تقرير الطلاب",
-    description: "ملخص بيانات الطلاب وحالتهم داخل المركز.",
+    description:
+      "ملخص بيانات الطلاب وحالتهم داخل المركز.",
     icon: <FiUsers size={19} />,
     module: "students",
   },
   {
     type: "attendance",
     title: "تقرير الحضور",
-    description: "متابعة الحضور والغياب ونسب الالتزام.",
+    description:
+      "متابعة الحضور والغياب ونسب الالتزام.",
     icon: <FiCheckCircle size={19} />,
     module: "attendance",
   },
   {
     type: "payments",
     title: "التقرير المالي",
-    description: "المدفوعات والمبالغ المحصلة والديون.",
+    description:
+      "المدفوعات والمبالغ المحصلة والديون.",
     icon: <FiDollarSign size={19} />,
     module: "payments",
   },
   {
     type: "groups",
     title: "تقرير المجموعات",
-    description: "ملخص المجموعات والطلاب والحصص.",
+    description:
+      "ملخص المجموعات والطلاب والحصص.",
     icon: <FiBookOpen size={19} />,
     module: "groups",
   },
   {
     type: "exams",
     title: "تقرير الامتحانات",
-    description: "نتائج الامتحانات ومتوسطات الطلاب.",
+    description:
+      "نتائج الامتحانات ومتوسطات الطلاب.",
     icon: <FiFileText size={19} />,
     module: "exams",
   },
 ];
 
-const summaryData = {
+const summaryData: Record<
+  "students" | "attendance" | "payments" | "debts",
+  SummaryItem
+> = {
   students: {
     value: "1,248",
     label: "إجمالي الطلاب",
@@ -98,10 +112,23 @@ const summaryData = {
   },
 };
 
-export default function ReportsPage() {
-  const { settings, isModuleEnabled } = useAppSettings();
+const REPORT_TYPES: ReportType[] = [
+  "students",
+  "attendance",
+  "payments",
+  "groups",
+  "exams",
+];
 
-  const [period, setPeriod] = useState("هذا الشهر");
+export default function ReportsPage() {
+  const { settings, isModuleEnabled } =
+    useAppSettings();
+
+  const [period, setPeriod] =
+    useState("هذا الشهر");
+
+  const [activeReport, setActiveReport] =
+    useState<ReportType>("students");
 
   const availableReports = useMemo(
     () =>
@@ -111,18 +138,28 @@ export default function ReportsPage() {
     [isModuleEnabled, settings.modules],
   );
 
-  const [activeReport, setActiveReport] =
-    useState<ReportType>("students");
-
   const selectedReport = useMemo(() => {
     const current = availableReports.find(
-      (report) => report.type === activeReport,
+      (report) =>
+        report.type === activeReport,
     );
 
     return current ?? availableReports[0];
   }, [activeReport, availableReports]);
 
-  const handleReportChange = (type: ReportType) => {
+  const reportRows = useMemo(() => {
+    if (!selectedReport) {
+      return [];
+    }
+
+    return getReportRows(
+      selectedReport.type,
+    );
+  }, [selectedReport]);
+
+  const handleReportChange = (
+    type: ReportType,
+  ) => {
     setActiveReport(type);
   };
 
@@ -133,7 +170,6 @@ export default function ReportsPage() {
 
     const rows = getReportRows(
       selectedReport.type,
-      period,
     );
 
     const csvRows = [
@@ -167,8 +203,11 @@ export default function ReportsPage() {
       },
     );
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
 
     link.href = url;
     link.download = `educenter-report-${selectedReport.type}.csv`;
@@ -180,16 +219,12 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  /*
-   * إذا كان Module التقارير نفسه مغلقًا،
-   * لا نعرض محتوى التقارير.
-   *
-   * الـSidebar المفروض يخفي الرابط أيضًا،
-   * لكن هذا حماية إضافية على مستوى الصفحة.
-   */
   if (!isModuleEnabled("reports")) {
     return (
-      <main className="min-h-screen bg-slate-50">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-slate-50"
+      >
         <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
@@ -212,7 +247,10 @@ export default function ReportsPage() {
 
   if (!selectedReport) {
     return (
-      <main className="min-h-screen bg-slate-50">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-slate-50"
+      >
         <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
@@ -233,20 +271,21 @@ export default function ReportsPage() {
     );
   }
 
-  const reportRows = getReportRows(
-    selectedReport.type,
-    period,
-  );
-
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main
+      dir="rtl"
+      className="min-h-screen bg-slate-50"
+    >
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Header */}
+
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
               <span>الرئيسية</span>
+
               <span>/</span>
+
               <span className="text-teal-600">
                 التقارير
               </span>
@@ -312,6 +351,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Summary */}
+
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
             label={summaryData.students.label}
@@ -324,14 +364,18 @@ export default function ReportsPage() {
             label={summaryData.attendance.label}
             value={summaryData.attendance.value}
             trend={summaryData.attendance.trend}
-            icon={<FiCheckCircle size={18} />}
+            icon={
+              <FiCheckCircle size={18} />
+            }
           />
 
           <SummaryCard
             label={summaryData.payments.label}
             value={summaryData.payments.value}
             trend={summaryData.payments.trend}
-            icon={<FiDollarSign size={18} />}
+            icon={
+              <FiDollarSign size={18} />
+            }
           />
 
           <SummaryCard
@@ -344,6 +388,7 @@ export default function ReportsPage() {
         </section>
 
         {/* Report selector */}
+
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-5">
             <h2 className="text-base font-bold text-slate-900">
@@ -356,58 +401,62 @@ export default function ReportsPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {availableReports.map((report) => {
-              const active =
-                report.type === activeReport;
+            {availableReports.map(
+              (report) => {
+                const active =
+                  report.type ===
+                  selectedReport.type;
 
-              return (
-                <button
-                  key={report.type}
-                  type="button"
-                  onClick={() =>
-                    handleReportChange(
-                      report.type,
-                    )
-                  }
-                  className={[
-                    "group rounded-xl border p-4 text-right transition",
-                    active
-                      ? "border-teal-200 bg-teal-50/70 shadow-sm"
-                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-teal-200 hover:bg-slate-50",
-                  ].join(" ")}
-                >
-                  <div
+                return (
+                  <button
+                    key={report.type}
+                    type="button"
+                    onClick={() =>
+                      handleReportChange(
+                        report.type,
+                      )
+                    }
                     className={[
-                      "flex h-10 w-10 items-center justify-center rounded-lg transition",
+                      "group rounded-xl border p-4 text-right transition",
                       active
-                        ? "bg-white text-teal-600"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-teal-50 group-hover:text-teal-600",
+                        ? "border-teal-200 bg-teal-50/70 shadow-sm"
+                        : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-teal-200 hover:bg-slate-50",
                     ].join(" ")}
                   >
-                    {report.icon}
-                  </div>
+                    <div
+                      className={[
+                        "flex h-10 w-10 items-center justify-center rounded-lg transition",
+                        active
+                          ? "bg-white text-teal-600"
+                          : "bg-slate-100 text-slate-500 group-hover:bg-teal-50 group-hover:text-teal-600",
+                      ].join(" ")}
+                    >
+                      {report.icon}
+                    </div>
 
-                  <h3
-                    className={[
-                      "mt-4 text-sm font-bold",
-                      active
-                        ? "text-teal-700"
-                        : "text-slate-800",
-                    ].join(" ")}
-                  >
-                    {report.title}
-                  </h3>
+                    <h3
+                      className={[
+                        "mt-4 text-sm font-bold",
+                        active
+                          ? "text-teal-700"
+                          : "text-slate-800",
+                      ].join(" ")}
+                    >
+                      {report.title}
+                    </h3>
 
-                  <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                    {report.description}
-                  </p>
-                </button>
-              );
-            })}
+                    <p className="mt-1 text-[11px] leading-5 text-slate-400">
+                      {report.description}
+                    </p>
+                  </button>
+                );
+              },
+            )}
           </div>
         </section>
 
         {/* Main report */}
+
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex items-center gap-3">
@@ -455,6 +504,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Chart */}
+
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-5">
               <div className="mb-5 flex items-center justify-between">
                 <div>
@@ -473,33 +523,37 @@ export default function ReportsPage() {
                 />
               </div>
 
-              <div className="flex h-48 items-end gap-3 rounded-lg border border-slate-200 bg-white px-4 py-5">
+              <div className="flex h-48 items-end gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white px-4 py-5">
                 {[
                   45, 62, 51, 74, 68, 86, 78, 92, 81, 96,
                   88, 100,
-                ].map((height, index) => (
-                  <div
-                    key={index}
-                    className="flex h-full flex-1 items-end"
-                  >
+                ].map(
+                  (height, index) => (
                     <div
-                      className="w-full rounded-t-md bg-teal-500/80 transition hover:bg-teal-600"
-                      style={{
-                        height: `${height}%`,
-                      }}
-                      title={`الأسبوع ${index + 1}`}
-                    />
-                  </div>
-                ))}
+                      key={`bar-${index + 1}`}
+                      className="flex h-full flex-1 items-end"
+                    >
+                      <div
+                        className="w-full rounded-t-md bg-teal-500/80 transition hover:bg-teal-600"
+                        style={{
+                          height: `${height}%`,
+                        }}
+                        title={`الأسبوع ${index + 1}`}
+                      />
+                    </div>
+                  ),
+                )}
               </div>
 
               <div className="mt-3 flex justify-between text-[10px] text-slate-400">
                 <span>الأسبوع 1</span>
+
                 <span>الأسبوع 12</span>
               </div>
             </div>
 
             {/* Table */}
+
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
               <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
                 <h3 className="text-sm font-bold text-slate-800">
@@ -534,30 +588,32 @@ export default function ReportsPage() {
                   </thead>
 
                   <tbody>
-                    {reportRows.map((row) => (
-                      <tr
-                        key={row.label}
-                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
-                      >
-                        <td className="px-5 py-4 text-xs font-semibold text-slate-700">
-                          {row.label}
-                        </td>
+                    {reportRows.map(
+                      (row) => (
+                        <tr
+                          key={row.label}
+                          className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+                        >
+                          <td className="px-5 py-4 text-xs font-semibold text-slate-700">
+                            {row.label}
+                          </td>
 
-                        <td className="px-5 py-4 text-xs font-bold text-slate-800">
-                          {row.value}
-                        </td>
+                          <td className="px-5 py-4 text-xs font-bold text-slate-800">
+                            {row.value}
+                          </td>
 
-                        <td className="px-5 py-4 text-xs text-slate-500">
-                          {period}
-                        </td>
+                          <td className="px-5 py-4 text-xs text-slate-500">
+                            {period}
+                          </td>
 
-                        <td className="px-5 py-4">
-                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                            مستقر
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-5 py-4">
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                              مستقر
+                            </span>
+                          </td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -566,6 +622,7 @@ export default function ReportsPage() {
         </section>
 
         {/* API note */}
+
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
@@ -664,7 +721,9 @@ function ReportMetric({
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function getReportValue(type: ReportType): string {
+function getReportValue(
+  type: ReportType,
+): string {
   switch (type) {
     case "students":
       return "1,248";
@@ -686,7 +745,9 @@ function getReportValue(type: ReportType): string {
   }
 }
 
-function getReportTrend(type: ReportType): string {
+function getReportTrend(
+  type: ReportType,
+): string {
   switch (type) {
     case "students":
       return "+8.4%";
@@ -710,10 +771,7 @@ function getReportTrend(type: ReportType): string {
 
 function getReportRows(
   type: ReportType,
-  period: string,
 ): ReportRow[] {
-  void period;
-
   switch (type) {
     case "students":
       return [

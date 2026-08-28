@@ -1,12 +1,15 @@
+
 "use client";
 
 import {
-  ChangeEvent,
-  FormEvent,
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
 } from "react";
+
 import {
   FiAlertCircle,
   FiAward,
@@ -63,7 +66,11 @@ type ImportRow = {
   message: string;
 };
 
-type WhatsAppStatus = "not_sent" | "pending" | "sent" | "failed";
+type WhatsAppStatus =
+  | "not_sent"
+  | "pending"
+  | "sent"
+  | "failed";
 
 const GROUPS = [
   {
@@ -300,18 +307,16 @@ export default function ExamsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedExam = useMemo(
-    () =>
-      exams.find((exam) => exam.id === selectedExamId) ??
-      null,
+    () => exams.find((exam) => exam.id === selectedExamId) ?? null,
     [exams, selectedExamId]
   );
 
   const selectedExamGrades = useMemo(() => {
     if (!selectedExam) return [];
 
-    return selectedExam
-      ? grades.filter((grade) => grade.examId === selectedExam.id)
-      : [];
+    return grades.filter(
+      (grade) => grade.examId === selectedExam.id
+    );
   }, [grades, selectedExam]);
 
   const selectedExamStudents = useMemo(() => {
@@ -359,7 +364,9 @@ export default function ExamsPage() {
   }, [exams, search, groupFilter]);
 
   const enteredGradesCount = examRows.filter(
-    ({ grade }) => grade?.score !== null && grade?.score !== undefined
+    ({ grade }) =>
+      grade?.score !== null &&
+      grade?.score !== undefined
   ).length;
 
   const pendingGradesCount =
@@ -386,7 +393,9 @@ export default function ExamsPage() {
     }));
   }
 
-  function handleCreateExam(event: FormEvent<HTMLFormElement>) {
+  function handleCreateExam(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     const maxScore = Number(examForm.maxScore);
@@ -416,7 +425,6 @@ export default function ExamsPage() {
       };
 
       setExams((current) => [newExam, ...current]);
-
       setSelectedExamId(newExam.id);
 
       setIsSaving(false);
@@ -542,16 +550,6 @@ export default function ExamsPage() {
 
     setFileName(file.name);
 
-    /*
-     * Excel parsing intentionally does not live inside the UI.
-     *
-     * In the API/service implementation this will become:
-     *
-     * examService.previewGradesImport(file, selectedExam.id)
-     *
-     * The UI only consumes the normalized preview result.
-     */
-
     const preview: ImportRow[] = [
       {
         id: "import-1",
@@ -606,7 +604,7 @@ export default function ExamsPage() {
     );
 
     setGrades((current) => {
-      let next = [...current];
+      const next = [...current];
 
       validRows.forEach((row) => {
         const student = MOCK_STUDENTS.find(
@@ -650,11 +648,6 @@ export default function ExamsPage() {
     if (!selectedExam || !hasApprovedGrades) {
       return;
     }
-
-    /*
-     * Real WhatsApp sending will be handled by the API/service layer.
-     * Frontend only displays the resulting state.
-     */
 
     setWhatsappStatuses((current) => ({
       ...current,
@@ -711,7 +704,6 @@ export default function ExamsPage() {
       className="min-h-screen bg-slate-50 px-4 py-5 text-slate-900 sm:px-6 lg:px-8"
     >
       <div className="mx-auto max-w-[1500px]">
-        {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -738,7 +730,6 @@ export default function ExamsPage() {
           </button>
         </div>
 
-        {/* Summary */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <SummaryCard
             icon={<FiFileText />}
@@ -759,9 +750,7 @@ export default function ExamsPage() {
           />
         </div>
 
-        {/* Content */}
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          {/* Exams */}
           <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-4 sm:p-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -861,8 +850,7 @@ export default function ExamsPage() {
                       const studentCount =
                         MOCK_STUDENTS.filter(
                           (student) =>
-                            student.groupId ===
-                            exam.groupId
+                            student.groupId === exam.groupId
                         ).length;
 
                       const entered =
@@ -936,8 +924,7 @@ export default function ExamsPage() {
 
                                 {approved
                                   ? "معتمد"
-                                  : entered ===
-                                    studentCount
+                                  : entered === studentCount
                                   ? "جاهز للاعتماد"
                                   : "درجات ناقصة"}
                               </span>
@@ -971,7 +958,6 @@ export default function ExamsPage() {
             )}
           </section>
 
-          {/* Selected Exam */}
           <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {!selectedExam ? (
               <EmptySelectedExam />
@@ -1002,17 +988,13 @@ export default function ExamsPage() {
                     <DetailItem
                       icon={<FiUsers />}
                       label="المجموعة"
-                      value={getGroupName(
-                        selectedExam.groupId
-                      )}
+                      value={getGroupName(selectedExam.groupId)}
                     />
 
                     <DetailItem
                       icon={<FiCalendar />}
                       label="التاريخ"
-                      value={formatDate(
-                        selectedExam.date
-                      )}
+                      value={formatDate(selectedExam.date)}
                     />
 
                     <DetailItem
@@ -1037,8 +1019,7 @@ export default function ExamsPage() {
                       </span>
 
                       <span className="text-xs text-slate-400">
-                        {enteredGradesCount} /{" "}
-                        {examRows.length}
+                        {enteredGradesCount} / {examRows.length}
                       </span>
                     </div>
 
@@ -1160,17 +1141,15 @@ export default function ExamsPage() {
 
                         <span
                           className={`text-xs font-semibold ${
-                            whatsappStatuses[
-                              selectedExam.id
-                            ] === "sent"
+                            whatsappStatuses[selectedExam.id] ===
+                            "sent"
                               ? "text-emerald-600"
                               : "text-amber-600"
                           }`}
                         >
                           {getWhatsAppStatusLabel(
-                            whatsappStatuses[
-                              selectedExam.id
-                            ] ?? "not_sent"
+                            whatsappStatuses[selectedExam.id] ??
+                              "not_sent"
                           )}
                         </span>
                       </div>
@@ -1179,15 +1158,13 @@ export default function ExamsPage() {
                         type="button"
                         onClick={sendWhatsApp}
                         disabled={
-                          whatsappStatuses[
-                            selectedExam.id
-                          ] === "sent"
+                          whatsappStatuses[selectedExam.id] ===
+                          "sent"
                         }
                         className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {whatsappStatuses[
-                          selectedExam.id
-                        ] === "sent" ? (
+                        {whatsappStatuses[selectedExam.id] ===
+                        "sent" ? (
                           <>
                             <FiCheckCircle />
                             تم الإرسال
@@ -1208,7 +1185,6 @@ export default function ExamsPage() {
         </div>
       </div>
 
-      {/* Create Exam Modal */}
       {showExamModal && (
         <Modal
           title="إنشاء امتحان جديد"
@@ -1233,10 +1209,7 @@ export default function ExamsPage() {
               label="المادة"
               value={examForm.subject}
               onChange={(value) =>
-                handleExamFormChange(
-                  "subject",
-                  value
-                )
+                handleExamFormChange("subject", value)
               }
               placeholder="مثال: الرياضيات"
               required
@@ -1246,10 +1219,7 @@ export default function ExamsPage() {
               label="المجموعة"
               value={examForm.groupId}
               onChange={(value) =>
-                handleExamFormChange(
-                  "groupId",
-                  value
-                )
+                handleExamFormChange("groupId", value)
               }
               options={GROUPS.map((group) => ({
                 value: group.id,
@@ -1266,10 +1236,7 @@ export default function ExamsPage() {
                 min="1"
                 value={examForm.maxScore}
                 onChange={(value) =>
-                  handleExamFormChange(
-                    "maxScore",
-                    value
-                  )
+                  handleExamFormChange("maxScore", value)
                 }
                 placeholder="50"
                 required
@@ -1280,10 +1247,7 @@ export default function ExamsPage() {
                 type="date"
                 value={examForm.date}
                 onChange={(value) =>
-                  handleExamFormChange(
-                    "date",
-                    value
-                  )
+                  handleExamFormChange("date", value)
                 }
                 required
               />
@@ -1322,7 +1286,6 @@ export default function ExamsPage() {
         </Modal>
       )}
 
-      {/* Grades Modal */}
       {showGradesModal && selectedExam && (
         <Modal
           wide
@@ -1396,16 +1359,11 @@ export default function ExamsPage() {
                             <input
                               type="number"
                               min="0"
-                              max={
-                                selectedExam.maxScore
-                              }
+                              max={selectedExam.maxScore}
                               step="0.5"
-                              value={
-                                grade?.score ?? ""
-                              }
+                              value={grade?.score ?? ""}
                               disabled={
-                                grade?.status ===
-                                "approved"
+                                grade?.status === "approved"
                               }
                               onChange={(event) =>
                                 updateGrade(
@@ -1425,10 +1383,8 @@ export default function ExamsPage() {
                                 <FiCheckCircle />
                                 معتمد
                               </span>
-                            ) : grade?.score !==
-                              null &&
-                              grade?.score !==
-                                undefined ? (
+                            ) : grade?.score !== null &&
+                              grade?.score !== undefined ? (
                               <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700">
                                 <FiClock />
                                 في انتظار الاعتماد
@@ -1478,7 +1434,6 @@ export default function ExamsPage() {
         </Modal>
       )}
 
-      {/* Excel Import Modal */}
       {showImportModal && selectedExam && (
         <Modal
           wide
@@ -1662,7 +1617,6 @@ export default function ExamsPage() {
         </Modal>
       )}
 
-      {/* Approval Modal */}
       {showApprovalModal && selectedExam && (
         <Modal
           title="اعتماد النتائج"
@@ -1691,23 +1645,17 @@ export default function ExamsPage() {
 
               <ConfirmItem
                 label="الدرجات المدخلة"
-                value={String(
-                  enteredGradesCount
-                )}
+                value={String(enteredGradesCount)}
               />
 
               <ConfirmItem
                 label="الدرجة النهائية"
-                value={String(
-                  selectedExam.maxScore
-                )}
+                value={String(selectedExam.maxScore)}
               />
 
               <ConfirmItem
                 label="المتبقي"
-                value={String(
-                  pendingGradesCount
-                )}
+                value={String(pendingGradesCount)}
               />
             </div>
           </div>
@@ -1759,7 +1707,7 @@ function SummaryCard({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: number;
 }) {
@@ -1789,7 +1737,7 @@ function DetailItem({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }) {
@@ -1828,6 +1776,7 @@ function InputField({
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-slate-700">
         {label}
+
         {required && (
           <span className="mr-1 text-red-500">
             *
@@ -1872,6 +1821,7 @@ function SelectField({
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-slate-700">
         {label}
+
         {required && (
           <span className="mr-1 text-red-500">
             *
@@ -1920,7 +1870,7 @@ function Modal({
 }: {
   title: string;
   description?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   onClose: () => void;
   wide?: boolean;
 }) {

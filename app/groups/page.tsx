@@ -231,15 +231,20 @@ export default function GroupsPage() {
     ),
   );
 
+  const safeCurrentPage = Math.min(
+    currentPage,
+    totalPages,
+  );
+
   const paginatedGroups = useMemo(() => {
     const start =
-      (currentPage - 1) * PAGE_SIZE;
+      (safeCurrentPage - 1) * PAGE_SIZE;
 
     return filteredGroups.slice(
       start,
       start + PAGE_SIZE,
     );
-  }, [filteredGroups, currentPage]);
+  }, [filteredGroups, safeCurrentPage]);
 
   const activeGroups = groups.filter(
     (group) => group.status === "نشطة",
@@ -261,20 +266,6 @@ export default function GroupsPage() {
     totalCapacity - totalStudents,
     0,
   );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    search,
-    statusFilter,
-    subjectFilter,
-  ]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
 
   useEffect(() => {
     const handleKeyDown = (
@@ -453,12 +444,12 @@ export default function GroupsPage() {
   const resultStart =
     filteredGroups.length === 0
       ? 0
-      : (currentPage - 1) *
+      : (safeCurrentPage - 1) *
           PAGE_SIZE +
         1;
 
   const resultEnd = Math.min(
-    currentPage * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE,
     filteredGroups.length,
   );
 
@@ -545,11 +536,10 @@ export default function GroupsPage() {
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setCurrentPage(1);
+                  }}
                   placeholder="ابحث باسم المجموعة أو المادة أو المدرس..."
                   aria-label="البحث في المجموعات"
                   className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pr-9 pl-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
@@ -570,6 +560,7 @@ export default function GroupsPage() {
                         | "الكل"
                         | GroupStatus,
                     );
+                    setCurrentPage(1);
                   }
                 }}
                 options={[
@@ -581,7 +572,10 @@ export default function GroupsPage() {
 
               <Select
                 value={subjectFilter}
-                onChange={setSubjectFilter}
+                onChange={(value) => {
+                  setSubjectFilter(value);
+                  setCurrentPage(1);
+                }}
                 options={[
                   "الكل",
                   ...subjects,
@@ -613,6 +607,7 @@ export default function GroupsPage() {
                   setSubjectFilter(
                     "الكل",
                   );
+                  setCurrentPage(1);
                 }}
                 className="text-xs font-semibold text-teal-600 transition hover:text-teal-700"
               >
@@ -976,7 +971,7 @@ export default function GroupsPage() {
               <button
                 type="button"
                 disabled={
-                  currentPage === 1
+                  safeCurrentPage === 1
                 }
                 onClick={() =>
                   setCurrentPage(
@@ -1024,7 +1019,7 @@ export default function GroupsPage() {
               <button
                 type="button"
                 disabled={
-                  currentPage ===
+                  safeCurrentPage ===
                   totalPages
                 }
                 onClick={() =>

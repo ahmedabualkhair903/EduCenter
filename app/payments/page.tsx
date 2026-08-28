@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -12,7 +13,6 @@ import {
   FiDollarSign,
   FiEdit2,
   FiEye,
-  FiFilter,
   FiPlus,
   FiSearch,
   FiTrash2,
@@ -112,11 +112,13 @@ function getInitials(name: string) {
 function getStudentFinance(
   student: Student,
   payments: Payment[],
+  excludedPaymentId?: string,
 ) {
   const paid = payments
     .filter(
       (payment) =>
-        payment.studentId === student.id,
+        payment.studentId === student.id &&
+        payment.id !== excludedPaymentId,
     )
     .reduce(
       (sum, payment) =>
@@ -204,6 +206,11 @@ export default function PaymentsPage() {
 
         setPayments(paymentsData);
         setStudents(studentsData);
+      } catch (error) {
+        console.error(
+          "Failed to load payment data:",
+          error,
+        );
       } finally {
         if (mounted) {
           setLoading(false);
@@ -369,6 +376,7 @@ export default function PaymentsPage() {
     payment: Payment,
   ) => {
     setDetailsModalOpen(false);
+    setSelectedPayment(null);
     setEditingPayment(payment);
     setPaymentModalOpen(true);
   };
@@ -466,11 +474,11 @@ export default function PaymentsPage() {
             </div>
 
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              المصروفات والمدفوعات
+              المدفوعات والتحصيل
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              متابعة المصروفات والمدفوعات والديون الخاصة بالطلاب.
+              إدارة مدفوعات الطلاب ومتابعة المستحقات والمبالغ المتبقية.
             </p>
           </div>
 
@@ -887,6 +895,7 @@ export default function PaymentsPage() {
         open={paymentModalOpen}
         payment={editingPayment}
         students={students}
+        payments={payments}
         onClose={() => {
           setPaymentModalOpen(false);
           setEditingPayment(null);
@@ -1122,12 +1131,14 @@ function PaymentModal({
   open,
   payment,
   students,
+  payments,
   onClose,
   onSubmit,
 }: {
   open: boolean;
   payment: Payment | null;
   students: Student[];
+  payments: Payment[];
   onClose: () => void;
   onSubmit: (
     data: Omit<
@@ -1208,6 +1219,28 @@ function PaymentModal({
         student.id === studentId,
     );
 
+  const previousPaid = selectedStudent
+    ? getStudentFinance(
+        selectedStudent,
+        payments,
+        payment?.id,
+      ).paid
+    : 0;
+
+  const numericAmount =
+    Number(amount) || 0;
+
+  const projectedRemaining =
+    selectedStudent
+      ? Math.max(
+          selectedStudent.financial
+            .totalRequired -
+            previousPaid -
+            numericAmount,
+          0,
+        )
+      : 0;
+
   const handleSubmit = () => {
     if (!studentId) {
       setError(
@@ -1215,9 +1248,6 @@ function PaymentModal({
       );
       return;
     }
-
-    const numericAmount =
-      Number(amount);
 
     if (
       !Number.isFinite(
@@ -1401,40 +1431,55 @@ function PaymentModal({
             </div>
           </div>
 
-          {selectedStudent &&
-            amount && (
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[11px] text-slate-400">
-                      إجمالي المستحق
-                    </p>
+          {selectedStudent && (
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-[11px] text-slate-400">
+                    إجمالي المستحق
+                  </p>
 
-                    <p className="mt-1 text-lg font-bold text-slate-800">
-                      {formatMoney(
-                        selectedStudent
-                          .financial
-                          .totalRequired,
-                      )}
-                    </p>
-                  </div>
+                  <p className="mt-1 text-lg font-bold text-slate-800">
+                    {formatMoney(
+                      selectedStudent
+                        .financial
+                        .totalRequired,
+                    )}
+                  </p>
+                </div>
 
-                  <div>
-                    <p className="text-[11px] text-slate-400">
-                      المدفوع سابقًا
-                    </p>
+                <div>
+                  <p className="text-[11px] text-slate-400">
+                    المدفوع سابقًا
+                  </p>
 
-                    <p className="mt-1 text-lg font-bold text-emerald-600">
-                      {formatMoney(
-                        selectedStudent
-                          .financial
-                          .paid,
-                      )}
-                    </p>
-                  </div>
+                  <p className="mt-1 text-lg font-bold text-emerald-600">
+                    {formatMoney(
+                      previousPaid,
+                    )}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[11px] text-slate-400">
+                    المتبقي بعد العملية
+                  </p>
+
+                  <p
+                    className={`mt-1 text-lg font-bold ${
+                      projectedRemaining > 0
+                        ? "text-red-600"
+                        : "text-emerald-600"
+                    }`}
+                  >
+                    {formatMoney(
+                      projectedRemaining,
+                    )}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

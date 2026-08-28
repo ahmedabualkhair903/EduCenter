@@ -1,4 +1,11 @@
+
 "use client";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   FiCalendar,
@@ -11,7 +18,12 @@ import {
   FiX,
 } from "react-icons/fi";
 
-import type { Student } from "@/types";
+import type {
+  Student,
+  StudentCustomFieldDefinition,
+} from "@/types";
+
+import { studentService } from "@/services";
 
 type StudentDetailsModalProps = {
   open: boolean;
@@ -20,19 +32,13 @@ type StudentDetailsModalProps = {
   onEdit: (student: Student) => void;
 };
 
-const groupNames: Record<
-  string,
-  string
-> = {
+const groupNames: Record<string, string> = {
   "group-001": "مجموعة أ",
   "group-002": "مجموعة ب",
   "group-003": "مجموعة ج",
 };
 
-const statusLabels: Record<
-  Student["status"],
-  string
-> = {
+const statusLabels: Record<Student["status"], string> = {
   active: "نشط",
   inactive: "غير نشط",
   suspended: "متوقف",
@@ -44,6 +50,50 @@ export default function StudentDetailsModal({
   onClose,
   onEdit,
 }: StudentDetailsModalProps) {
+  const [customFieldDefinitions, setCustomFieldDefinitions] =
+    useState<StudentCustomFieldDefinition[]>([]);
+
+  useEffect(() => {
+    if (!open || !student) {
+      return;
+    }
+
+    let mounted = true;
+
+    const loadCustomFieldDefinitions = async () => {
+      try {
+        const definitions = await studentService.customFields();
+
+        if (!mounted) {
+          return;
+        }
+
+        setCustomFieldDefinitions(
+          [...definitions].sort((a, b) => a.order - b.order),
+        );
+      } catch {
+        if (mounted) {
+          setCustomFieldDefinitions([]);
+        }
+      }
+    };
+
+    loadCustomFieldDefinitions();
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, student]);
+
+  const customFieldMap = useMemo(() => {
+    return new Map(
+      customFieldDefinitions.map((field) => [
+        field.id,
+        field,
+      ]),
+    );
+  }, [customFieldDefinitions]);
+
   if (!open || !student) {
     return null;
   }
@@ -52,26 +102,29 @@ export default function StudentDetailsModal({
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map((word) =>
-      word.charAt(0),
-    )
+    .map((word) => word.charAt(0))
     .join("");
 
   const groupName = student.groupId
-    ? groupNames[
-        student.groupId
-      ] ?? "غير محددة"
+    ? groupNames[student.groupId] ?? "غير محددة"
     : "غير محددة";
 
-  const statusLabel =
-    statusLabels[student.status];
+  const statusLabel = statusLabels[student.status] ?? "غير محدد";
+
+  const paymentPercentage =
+    student.financial.totalRequired > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (student.financial.paid /
+              student.financial.totalRequired) *
+              100,
+          ),
+        )
+      : 100;
 
   const handleWhatsApp = () => {
-    const phone =
-      student.guardianPhone.replace(
-        /\D/g,
-        "",
-      );
+    const phone = student.guardianPhone.replace(/\D/g, "");
 
     if (!phone) {
       return;
@@ -88,10 +141,7 @@ export default function StudentDetailsModal({
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]"
       onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
+        if (event.target === event.currentTarget) {
           onClose();
         }
       }}
@@ -105,9 +155,7 @@ export default function StudentDetailsModal({
         <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-teal-50 text-sm font-bold text-teal-700">
-              {initials || (
-                <FiUser size={19} />
-              )}
+              {initials || <FiUser size={19} />}
             </div>
 
             <div className="min-w-0">
@@ -121,13 +169,11 @@ export default function StudentDetailsModal({
 
                 <span
                   className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                    student.status ===
-                    "active"
+                    student.status === "active"
                       ? "bg-emerald-50 text-emerald-700"
-                      : student.status ===
-                        "suspended"
-                      ? "bg-amber-50 text-amber-700"
-                      : "bg-slate-100 text-slate-600"
+                      : student.status === "suspended"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-slate-100 text-slate-600"
                   }`}
                 >
                   {statusLabel}
@@ -135,8 +181,7 @@ export default function StudentDetailsModal({
               </div>
 
               <p className="mt-1 text-xs text-slate-400">
-                رقم الطالب:{" "}
-                {student.studentId}
+                رقم الطالب: {student.studentId}
               </p>
             </div>
           </div>
@@ -154,25 +199,19 @@ export default function StudentDetailsModal({
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           <section className="grid gap-3 sm:grid-cols-3">
             <InfoCard
-              icon={
-                <FiCalendar size={16} />
-              }
+              icon={<FiCalendar size={16} />}
               label="المرحلة"
-              value={student.grade}
+              value={student.grade || "غير محددة"}
             />
 
             <InfoCard
-              icon={
-                <FiClock size={16} />
-              }
+              icon={<FiClock size={16} />}
               label="المجموعة"
               value={groupName}
             />
 
             <InfoCard
-              icon={
-                <FiCheckCircle size={16} />
-              }
+              icon={<FiCheckCircle size={16} />}
               label="الحالة"
               value={statusLabel}
             />
@@ -187,47 +226,28 @@ export default function StudentDetailsModal({
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailItem
                 label="رقم الهاتف"
-                value={
-                  student.phone ??
-                  "غير مسجل"
-                }
-                icon={
-                  <FiPhone size={15} />
-                }
+                value={student.phone || "غير مسجل"}
+                icon={<FiPhone size={15} />}
                 direction="ltr"
               />
 
               <DetailItem
                 label="اسم ولي الأمر"
-                value={
-                  student.guardianName
-                }
-                icon={
-                  <FiUser size={15} />
-                }
+                value={student.guardianName || "غير مسجل"}
+                icon={<FiUser size={15} />}
               />
 
               <DetailItem
                 label="هاتف ولي الأمر"
-                value={
-                  student.guardianPhone ||
-                  "غير مسجل"
-                }
-                icon={
-                  <FiPhone size={15} />
-                }
+                value={student.guardianPhone || "غير مسجل"}
+                icon={<FiPhone size={15} />}
                 direction="ltr"
               />
 
               <DetailItem
                 label="العنوان"
-                value={
-                  student.address ??
-                  "غير مسجل"
-                }
-                icon={
-                  <FiUser size={15} />
-                }
+                value={student.address || "غير مسجل"}
+                icon={<FiUser size={15} />}
               />
             </div>
           </section>
@@ -241,31 +261,19 @@ export default function StudentDetailsModal({
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <FinancialItem
                 label="إجمالي المطلوب"
-                value={
-                  student.financial
-                    .totalRequired
-                }
+                value={student.financial.totalRequired}
               />
 
               <FinancialItem
                 label="المدفوع"
-                value={
-                  student.financial
-                    .paid
-                }
+                value={student.financial.paid}
                 positive
               />
 
               <FinancialItem
                 label="المتبقي"
-                value={
-                  student.financial
-                    .remaining
-                }
-                warning={
-                  student.financial
-                    .remaining > 0
-                }
+                value={student.financial.remaining}
+                warning={student.financial.remaining > 0}
               />
             </div>
 
@@ -276,17 +284,7 @@ export default function StudentDetailsModal({
                 </span>
 
                 <span className="font-semibold text-slate-600">
-                  {student.financial
-                    .totalRequired > 0
-                    ? Math.round(
-                        (student.financial
-                          .paid /
-                          student.financial
-                            .totalRequired) *
-                          100,
-                      )
-                    : 100}
-                  %
+                  {paymentPercentage}%
                 </span>
               </div>
 
@@ -294,32 +292,14 @@ export default function StudentDetailsModal({
                 <div
                   className="h-full rounded-full bg-teal-500 transition-all"
                   style={{
-                    width: `${
-                      student.financial
-                        .totalRequired >
-                      0
-                        ? Math.min(
-                            100,
-                            Math.round(
-                              (student
-                                .financial
-                                .paid /
-                                student
-                                  .financial
-                                  .totalRequired) *
-                                100,
-                            ),
-                          )
-                        : 100
-                    }%`,
+                    width: `${paymentPercentage}%`,
                   }}
                 />
               </div>
             </div>
           </section>
 
-          {student.customFields.length >
-            0 && (
+          {student.customFields.length > 0 && (
             <section className="mt-6 border-t border-slate-100 pt-6">
               <SectionTitle
                 title="بيانات إضافية"
@@ -327,22 +307,25 @@ export default function StudentDetailsModal({
               />
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {student.customFields.map(
-                  (field) => (
+                {student.customFields.map((field) => {
+                  const definition = customFieldMap.get(
+                    field.fieldId,
+                  );
+
+                  return (
                     <DetailItem
                       key={field.fieldId}
-                      label={field.fieldId}
-                      value={
-                        field.value ===
-                        null
-                          ? "غير مسجل"
-                          : String(
-                              field.value,
-                            )
+                      label={
+                        definition?.label ??
+                        field.fieldId
                       }
+                      value={formatCustomFieldValue(
+                        field.value,
+                        definition,
+                      )}
                     />
-                  ),
-                )}
+                  );
+                })}
               </div>
             </section>
           )}
@@ -374,27 +357,19 @@ export default function StudentDetailsModal({
 
             <div className="mt-4 space-y-3">
               <ActivityItem
-                icon={
-                  <FiCheckCircle
-                    size={15}
-                  />
-                }
+                icon={<FiCheckCircle size={15} />}
                 title="تم تسجيل حضور الطالب"
                 date="اليوم"
               />
 
               <ActivityItem
-                icon={
-                  <FiCalendar size={15} />
-                }
+                icon={<FiCalendar size={15} />}
                 title="تم تسجيل الطالب في المجموعة"
                 date="منذ 3 أيام"
               />
 
               <ActivityItem
-                icon={
-                  <FiUser size={15} />
-                }
+                icon={<FiUser size={15} />}
                 title="تم إنشاء ملف الطالب"
                 date="منذ أسبوع"
               />
@@ -406,14 +381,10 @@ export default function StudentDetailsModal({
           <button
             type="button"
             onClick={handleWhatsApp}
-            disabled={
-              !student.guardianPhone
-            }
+            disabled={!student.guardianPhone}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <FiMessageCircle
-              size={16}
-            />
+            <FiMessageCircle size={16} />
             مراسلة ولي الأمر
           </button>
 
@@ -428,9 +399,7 @@ export default function StudentDetailsModal({
 
             <button
               type="button"
-              onClick={() =>
-                onEdit(student)
-              }
+              onClick={() => onEdit(student)}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-semibold text-white transition hover:bg-teal-700 active:scale-[0.98]"
             >
               <FiEdit2 size={15} />
@@ -441,6 +410,32 @@ export default function StudentDetailsModal({
       </div>
     </div>
   );
+}
+
+function formatCustomFieldValue(
+  value: string | number | boolean | null,
+  definition?: StudentCustomFieldDefinition,
+): string {
+  if (value === null || value === undefined || value === "") {
+    return "غير مسجل";
+  }
+
+  if (
+    definition?.type === "boolean" ||
+    typeof value === "boolean"
+  ) {
+    return value ? "نعم" : "لا";
+  }
+
+  if (definition?.type === "select" && definition.options) {
+    return (
+      definition.options.find(
+        (option) => option === String(value),
+      ) ?? String(value)
+    );
+  }
+
+  return String(value);
 }
 
 function SectionTitle({
@@ -513,9 +508,7 @@ function DetailItem({
       <p
         dir={direction}
         className={`mt-2 text-sm font-semibold text-slate-700 ${
-          direction === "ltr"
-            ? "text-right"
-            : ""
+          direction === "ltr" ? "text-right" : ""
         }`}
       >
         {value}
@@ -546,14 +539,11 @@ function FinancialItem({
           warning
             ? "text-amber-600"
             : positive
-            ? "text-emerald-600"
-            : "text-slate-800"
+              ? "text-emerald-600"
+              : "text-slate-800"
         }`}
       >
-        {value.toLocaleString(
-          "ar-EG",
-        )}{" "}
-        ج.م
+        {value.toLocaleString("ar-EG")} ج.م
       </p>
     </div>
   );
@@ -586,3 +576,4 @@ function ActivityItem({
     </div>
   );
 }
+

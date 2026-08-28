@@ -84,6 +84,8 @@ const grades = [
   "ثالثة ثانوي",
 ];
 
+const PHONE_REGEX = /^[0-9+\s-]{8,15}$/;
+
 export default function StudentModal({
   open,
   onClose,
@@ -144,6 +146,10 @@ export default function StudentModal({
             ),
           );
         }
+      } catch {
+        if (mounted) {
+          setCustomFieldDefinitions([]);
+        }
       } finally {
         if (mounted) {
           setCustomFieldsLoading(false);
@@ -179,7 +185,10 @@ export default function StudentModal({
           initialData.customFields ?? [],
       });
     } else {
-      setForm(emptyForm);
+      setForm({
+        ...emptyForm,
+        customFields: [],
+      });
     }
 
     setErrors({});
@@ -264,6 +273,11 @@ export default function StudentModal({
         customFields: nextCustomFields,
       };
     });
+
+    setErrors((current) => ({
+      ...current,
+      customFields: undefined,
+    }));
   };
 
   const addCustomFieldDefinition = () => {
@@ -364,7 +378,7 @@ export default function StudentModal({
       nextErrors.phone =
         "رقم الهاتف مطلوب";
     } else if (
-      !/^[0-9+\s-]{8,15}$/.test(
+      !PHONE_REGEX.test(
         form.phone.trim(),
       )
     ) {
@@ -380,6 +394,13 @@ export default function StudentModal({
     if (!form.guardianPhone.trim()) {
       nextErrors.guardianPhone =
         "رقم ولي الأمر مطلوب";
+    } else if (
+      !PHONE_REGEX.test(
+        form.guardianPhone.trim(),
+      )
+    ) {
+      nextErrors.guardianPhone =
+        "رقم ولي الأمر غير صحيح";
     }
 
     if (!form.grade) {
@@ -572,6 +593,8 @@ export default function StudentModal({
                 >
                   <input
                     dir="ltr"
+                    type="tel"
+                    inputMode="tel"
                     value={form.phone}
                     onChange={(event) =>
                       updateField(
@@ -738,6 +761,8 @@ export default function StudentModal({
                 >
                   <input
                     dir="ltr"
+                    type="tel"
+                    inputMode="tel"
                     value={
                       form.guardianPhone
                     }
@@ -863,6 +888,34 @@ export default function StudentModal({
                     </Field>
                   </div>
 
+                  <div className="mt-4 flex items-center gap-2">
+                    <input
+                      id="custom-field-required"
+                      type="checkbox"
+                      checked={
+                        newCustomField.required
+                      }
+                      onChange={(event) =>
+                        setNewCustomField(
+                          (current) => ({
+                            ...current,
+                            required:
+                              event.target
+                                .checked,
+                          }),
+                        )
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    />
+
+                    <label
+                      htmlFor="custom-field-required"
+                      className="text-xs font-medium text-slate-600"
+                    >
+                      هذا الحقل مطلوب
+                    </label>
+                  </div>
+
                   {newCustomField.type ===
                     "select" && (
                     <div className="mt-4">
@@ -914,7 +967,10 @@ export default function StudentModal({
                         addCustomFieldDefinition
                       }
                       disabled={
-                        !newCustomField.label.trim()
+                        !newCustomField.label.trim() ||
+                        (newCustomField.type ===
+                          "select" &&
+                          !newCustomField.options.trim())
                       }
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -1253,10 +1309,7 @@ function SelectField({
         )} appearance-none pl-9`}
       >
         {placeholder && (
-          <option
-            value=""
-            disabled
-          >
+          <option value="">
             {placeholder}
           </option>
         )}

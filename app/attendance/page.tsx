@@ -735,7 +735,7 @@ export default function AttendancePage() {
 
             <p className="mx-auto mt-1 max-w-md text-xs leading-6 text-slate-400">
               اختر المجموعة والحصة
-              ثم اضغط "فتح الحضور"
+              ثم اضغط &quot;فتح الحضور&quot;
               لبدء جلسة تسجيل
               الطلاب.
             </p>

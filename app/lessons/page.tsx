@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -61,10 +62,7 @@ const statusOptions = [
 
 const getDateKey = (date: Date) => {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(
-    2,
-    "0",
-  );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
@@ -240,17 +238,18 @@ export default function LessonsPage() {
     useState<Lesson[]>(initialLessons);
 
   const [search, setSearch] = useState("");
+
   const [statusFilter, setStatusFilter] =
     useState("الكل");
+
+  const [selectedDate, setSelectedDate] =
+    useState("اليوم");
 
   const [modalOpen, setModalOpen] =
     useState(false);
 
   const [editingLesson, setEditingLesson] =
     useState<Lesson | null>(null);
-
-  const [selectedDate, setSelectedDate] =
-    useState("اليوم");
 
   const todayKey = getDateKey(new Date());
   const tomorrowKey = getTomorrowKey();
@@ -581,148 +580,122 @@ export default function LessonsPage() {
               </thead>
 
               <tbody>
-                {filteredLessons.map(
-                  (lesson) => (
-                    <tr
-                      key={lesson.id}
-                      className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
-                    >
-                      {/* Subject */}
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-                            <FiBookOpen size={16} />
-                          </div>
-
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">
-                              {lesson.subject}
-                            </p>
-
-                            <p className="mt-0.5 text-[10px] text-slate-400">
-                              #{lesson.id}
-                            </p>
-                          </div>
+                {filteredLessons.map((lesson) => (
+                  <tr
+                    key={lesson.id}
+                    className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+                          <FiBookOpen size={16} />
                         </div>
-                      </td>
 
-                      {/* Teacher */}
-
-                      <td className="px-5 py-4">
-                        <span className="text-xs font-medium text-slate-600">
-                          {lesson.teacher}
-                        </span>
-                      </td>
-
-                      {/* Group */}
-
-                      <td className="px-5 py-4">
-                        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                          {lesson.group}
-                        </span>
-                      </td>
-
-                      {/* Time */}
-
-                      <td className="px-5 py-4">
                         <div>
-                          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                            <FiClock
-                              size={14}
-                              className="text-slate-400"
-                            />
+                          <p className="text-sm font-semibold text-slate-800">
+                            {lesson.subject}
+                          </p>
 
-                            {formatTime(
-                              lesson.time,
-                            )}
-                          </div>
-
-                          <p className="mt-1 text-[10px] text-slate-400">
-                            {formatDate(
-                              lesson.date,
-                            )}{" "}
-                            · {lesson.duration} دقيقة
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            #{lesson.id}
                           </p>
                         </div>
-                      </td>
+                      </div>
+                    </td>
 
-                      {/* Room */}
+                    <td className="px-5 py-4">
+                      <span className="text-xs font-medium text-slate-600">
+                        {lesson.teacher}
+                      </span>
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <span className="text-xs font-medium text-slate-600">
-                          {lesson.room}
-                        </span>
-                      </td>
+                    <td className="px-5 py-4">
+                      <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                        {lesson.group}
+                      </span>
+                    </td>
 
-                      {/* Students */}
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <FiUsers
+                    <td className="px-5 py-4">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                          <FiClock
                             size={14}
                             className="text-slate-400"
                           />
 
-                          <span className="text-sm font-semibold text-slate-700">
-                            {lesson.students}
-                          </span>
+                          {formatTime(lesson.time)}
                         </div>
-                      </td>
 
-                      {/* Status */}
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {formatDate(lesson.date)}{" "}
+                          · {lesson.duration} دقيقة
+                        </p>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <LessonStatusBadge
-                          status={lesson.status}
+                    <td className="px-5 py-4">
+                      <span className="text-xs font-medium text-slate-600">
+                        {lesson.room}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <FiUsers
+                          size={14}
+                          className="text-slate-400"
                         />
-                      </td>
 
-                      {/* Actions */}
+                        <span className="text-sm font-semibold text-slate-700">
+                          {lesson.students}
+                        </span>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openEditModal(
-                                lesson,
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                            title="تعديل"
-                            aria-label={`تعديل حصة ${lesson.subject}`}
-                          >
-                            <FiEdit2 size={15} />
-                          </button>
+                    <td className="px-5 py-4">
+                      <LessonStatusBadge
+                        status={lesson.status}
+                      />
+                    </td>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDelete(
-                                lesson,
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                            title="حذف"
-                            aria-label={`حذف حصة ${lesson.subject}`}
-                          >
-                            <FiTrash2 size={15} />
-                          </button>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openEditModal(lesson)
+                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                          title="تعديل"
+                          aria-label={`تعديل حصة ${lesson.subject}`}
+                        >
+                          <FiEdit2 size={15} />
+                        </button>
 
-                          <button
-                            type="button"
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                            title="المزيد"
-                            aria-label={`المزيد من إجراءات حصة ${lesson.subject}`}
-                          >
-                            <FiMoreVertical size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ),
-                )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDelete(lesson)
+                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                          title="حذف"
+                          aria-label={`حذف حصة ${lesson.subject}`}
+                        >
+                          <FiTrash2 size={15} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                          title="المزيد"
+                          aria-label={`المزيد من إجراءات حصة ${lesson.subject}`}
+                        >
+                          <FiMoreVertical size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
 
@@ -764,6 +737,7 @@ export default function LessonsPage() {
       {/* Modal */}
 
       <LessonModal
+        key={`${modalOpen}-${editingLesson?.id ?? "new"}`}
         open={modalOpen}
         lesson={editingLesson}
         onClose={closeModal}
@@ -832,10 +806,7 @@ function LessonSelect({
       className="h-10 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
     >
       {options.map((option) => (
-        <option
-          key={option}
-          value={option}
-        >
+        <option key={option} value={option}>
           {option}
         </option>
       ))}
@@ -852,18 +823,11 @@ function LessonStatusBadge({
 }: {
   status: LessonStatus;
 }) {
-  const styles: Record<
-    LessonStatus,
-    string
-  > = {
-    قادمة:
-      "bg-blue-50 text-blue-700",
-    جارية:
-      "bg-emerald-50 text-emerald-700",
-    مكتملة:
-      "bg-slate-100 text-slate-600",
-    ملغاة:
-      "bg-red-50 text-red-700",
+  const styles: Record<LessonStatus, string> = {
+    قادمة: "bg-blue-50 text-blue-700",
+    جارية: "bg-emerald-50 text-emerald-700",
+    مكتملة: "bg-slate-100 text-slate-600",
+    ملغاة: "bg-red-50 text-red-700",
   };
 
   return (
@@ -888,62 +852,52 @@ function LessonModal({
   open: boolean;
   lesson: Lesson | null;
   onClose: () => void;
-  onSubmit: (
-    data: LessonFormData,
-  ) => void;
+  onSubmit: (data: LessonFormData) => void;
 }) {
   const isEdit = Boolean(lesson);
 
-  const [subject, setSubject] = useState("");
-  const [teacher, setTeacher] = useState("");
-  const [group, setGroup] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [duration, setDuration] =
-    useState("90");
-  const [room, setRoom] = useState("قاعة 1");
-  const [students, setStudents] =
-    useState("25");
+  const [subject, setSubject] = useState(
+    () => lesson?.subject ?? "",
+  );
+
+  const [teacher, setTeacher] = useState(
+    () => lesson?.teacher ?? "",
+  );
+
+  const [group, setGroup] = useState(
+    () => lesson?.group ?? "",
+  );
+
+  const [date, setDate] = useState(
+    () => lesson?.date ?? getDateKey(new Date()),
+  );
+
+  const [time, setTime] = useState(
+    () => lesson?.time ?? "16:00",
+  );
+
+  const [duration, setDuration] = useState(
+    () => String(lesson?.duration ?? 90),
+  );
+
+  const [room, setRoom] = useState(
+    () => lesson?.room ?? "قاعة 1",
+  );
+
+  const [students, setStudents] = useState(
+    () => String(lesson?.students ?? 25),
+  );
+
   const [status, setStatus] =
-    useState<LessonStatus>("قادمة");
-  const [notes, setNotes] = useState("");
+    useState<LessonStatus>(
+      () => lesson?.status ?? "قادمة",
+    );
+
+  const [notes, setNotes] = useState(
+    () => lesson?.notes ?? "",
+  );
+
   const [error, setError] = useState("");
-
-  /* ------------------------------------------------------------------------ */
-  /* Sync form whenever the selected lesson changes                           */
-  /* ------------------------------------------------------------------------ */
-
-  useEffect(() => {
-    if (lesson) {
-      setSubject(lesson.subject);
-      setTeacher(lesson.teacher);
-      setGroup(lesson.group);
-      setDate(lesson.date);
-      setTime(lesson.time);
-      setDuration(
-        String(lesson.duration),
-      );
-      setRoom(lesson.room);
-      setStudents(
-        String(lesson.students),
-      );
-      setStatus(lesson.status);
-      setNotes(lesson.notes);
-    } else {
-      setSubject("");
-      setTeacher("");
-      setGroup("");
-      setDate(getDateKey(new Date()));
-      setTime("16:00");
-      setDuration("90");
-      setRoom("قاعة 1");
-      setStudents("25");
-      setStatus("قادمة");
-      setNotes("");
-    }
-
-    setError("");
-  }, [lesson, open]);
 
   /* ------------------------------------------------------------------------ */
   /* Escape + Body Scroll                                                     */
@@ -1002,33 +956,22 @@ function LessonModal({
       return;
     }
 
-    const numericDuration =
-      Number(duration);
-
-    const numericStudents =
-      Number(students);
+    const numericDuration = Number(duration);
+    const numericStudents = Number(students);
 
     if (
-      !Number.isFinite(
-        numericDuration,
-      ) ||
+      !Number.isFinite(numericDuration) ||
       numericDuration <= 0
     ) {
-      setError(
-        "مدة الحصة غير صحيحة.",
-      );
+      setError("مدة الحصة غير صحيحة.");
       return;
     }
 
     if (
-      !Number.isFinite(
-        numericStudents,
-      ) ||
+      !Number.isFinite(numericStudents) ||
       numericStudents < 0
     ) {
-      setError(
-        "عدد الطلاب غير صحيح.",
-      );
+      setError("عدد الطلاب غير صحيح.");
       return;
     }
 
@@ -1107,9 +1050,7 @@ function LessonModal({
               <input
                 value={subject}
                 onChange={(event) => {
-                  setSubject(
-                    event.target.value,
-                  );
+                  setSubject(event.target.value);
                   setError("");
                 }}
                 placeholder="مثال: الرياضيات"
@@ -1122,9 +1063,7 @@ function LessonModal({
               <input
                 value={teacher}
                 onChange={(event) => {
-                  setTeacher(
-                    event.target.value,
-                  );
+                  setTeacher(event.target.value);
                   setError("");
                 }}
                 placeholder="اسم المدرس"
@@ -1137,9 +1076,7 @@ function LessonModal({
               <input
                 value={group}
                 onChange={(event) => {
-                  setGroup(
-                    event.target.value,
-                  );
+                  setGroup(event.target.value);
                   setError("");
                 }}
                 placeholder="مثال: ثالثة ثانوي - A"
@@ -1152,9 +1089,7 @@ function LessonModal({
               <input
                 value={room}
                 onChange={(event) => {
-                  setRoom(
-                    event.target.value,
-                  );
+                  setRoom(event.target.value);
                   setError("");
                 }}
                 placeholder="مثال: قاعة 1"
@@ -1168,9 +1103,7 @@ function LessonModal({
                 type="date"
                 value={date}
                 onChange={(event) => {
-                  setDate(
-                    event.target.value,
-                  );
+                  setDate(event.target.value);
                   setError("");
                 }}
                 className="field"
@@ -1182,9 +1115,7 @@ function LessonModal({
                 type="time"
                 value={time}
                 onChange={(event) => {
-                  setTime(
-                    event.target.value,
-                  );
+                  setTime(event.target.value);
                   setError("");
                 }}
                 className="field"
@@ -1198,9 +1129,7 @@ function LessonModal({
                 step="5"
                 value={duration}
                 onChange={(event) => {
-                  setDuration(
-                    event.target.value,
-                  );
+                  setDuration(event.target.value);
                   setError("");
                 }}
                 className="field"
@@ -1215,9 +1144,7 @@ function LessonModal({
                 step="1"
                 value={students}
                 onChange={(event) => {
-                  setStudents(
-                    event.target.value,
-                  );
+                  setStudents(event.target.value);
                   setError("");
                 }}
                 className="field"
@@ -1260,9 +1187,7 @@ function LessonModal({
                 <textarea
                   value={notes}
                   onChange={(event) =>
-                    setNotes(
-                      event.target.value,
-                    )
+                    setNotes(event.target.value)
                   }
                   placeholder="ملاحظات إضافية..."
                   className="field min-h-24 resize-y"

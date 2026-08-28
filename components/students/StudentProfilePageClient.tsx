@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -11,7 +12,6 @@ import {
   FiMessageCircle,
   FiPhone,
   FiUser,
-  FiXCircle,
 } from "react-icons/fi";
 
 import type {
@@ -78,6 +78,16 @@ const attendanceLabels: Record<string, string> = {
   late: "متأخر",
   excused: "بعذر",
 };
+
+const studentStatusLabels: Record<
+  Student["status"],
+  string
+> = {
+  active: "نشط",
+  inactive: "غير نشط",
+  suspended: "متوقف",
+};
+
 export default function StudentProfileContent({
   student,
   payments,
@@ -122,7 +132,9 @@ export default function StudentProfileContent({
 
     const rate =
       total > 0
-        ? Math.round(((present + late) / total) * 100)
+        ? Math.round(
+            ((present + late) / total) * 100,
+          )
         : 0;
 
     return {
@@ -233,12 +245,14 @@ export default function StudentProfileContent({
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     student.status === "active"
                       ? "bg-emerald-50 text-emerald-700"
+                      : student.status === "suspended"
+                      ? "bg-amber-50 text-amber-700"
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {student.status === "active"
-                    ? "نشط"
-                    : "غير نشط"}
+                  {studentStatusLabels[
+                    student.status
+                  ]}
                 </span>
               </div>
 
@@ -272,9 +286,9 @@ export default function StudentProfileContent({
             icon={<FiUser size={18} />}
             label="حالة الطالب"
             value={
-              student.status === "active"
-                ? "نشط"
-                : "غير نشط"
+              studentStatusLabels[
+                student.status
+              ]
             }
           />
 
@@ -615,15 +629,12 @@ function PaymentsTab({
                   <th className="px-4 py-3">
                     التاريخ
                   </th>
-
                   <th className="px-4 py-3">
                     المبلغ
                   </th>
-
                   <th className="px-4 py-3">
                     طريقة الدفع
                   </th>
-
                   <th className="px-4 py-3">
                     الحالة
                   </th>
@@ -645,9 +656,7 @@ function PaymentsTab({
                     <td className="px-4 py-3 font-semibold text-slate-800">
                       {Number(
                         payment.amount || 0,
-                      ).toLocaleString(
-                        "ar-EG",
-                      )}{" "}
+                      ).toLocaleString("ar-EG")}{" "}
                       ج.م
                     </td>
 
@@ -702,15 +711,12 @@ function GradesTab({
                   <th className="px-4 py-3">
                     الاختبار
                   </th>
-
                   <th className="px-4 py-3">
                     المادة
                   </th>
-
                   <th className="px-4 py-3">
                     الدرجة
                   </th>
-
                   <th className="px-4 py-3">
                     الحالة
                   </th>
@@ -880,7 +886,7 @@ function AttendanceTab({
                     <p className="font-medium text-slate-800">
                       {attendanceLabels[
                         record.status
-                      ]}
+                      ] || "غير محدد"}
                     </p>
                   </div>
 
@@ -946,7 +952,7 @@ function MessagesTab({
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                         {messageTypeLabels[
                           message.type
-                        ]}
+                        ] || "رسالة"}
                       </span>
 
                       <span
@@ -1236,39 +1242,29 @@ function EmptyState({
 function formatDate(value: string) {
   const date = new Date(value);
 
-  if (
-    Number.isNaN(date.getTime())
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return date.toLocaleDateString(
-    "ar-EG",
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    },
-  );
+  return date.toLocaleDateString("ar-EG", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function formatDateTime(value: string) {
   const date = new Date(value);
 
-  if (
-    Number.isNaN(date.getTime())
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return date.toLocaleString(
-    "ar-EG",
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  );
+  return date.toLocaleString("ar-EG", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

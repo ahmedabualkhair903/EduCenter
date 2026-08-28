@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -34,15 +35,39 @@ type AppSettingsContextValue = {
 };
 
 const AppSettingsContext =
-  createContext<AppSettingsContextValue>({
-    settings: mockSettings,
+  createContext<AppSettingsContextValue | null>(
+    null,
+  );
 
-    isModuleEnabled: () => true,
+function mergeSettings(
+  base: AppSettings,
+  patch: Partial<AppSettings>,
+): AppSettings {
+  return {
+    ...base,
+    ...patch,
 
-    updateSettings: () => undefined,
+    modules: {
+      ...base.modules,
+      ...(patch.modules ?? {}),
+    },
 
-    setModuleEnabled: () => undefined,
-  });
+    center: {
+      ...base.center,
+      ...(patch.center ?? {}),
+    },
+
+    attendance: {
+      ...base.attendance,
+      ...(patch.attendance ?? {}),
+    },
+
+    notifications: {
+      ...base.notifications,
+      ...(patch.notifications ?? {}),
+    },
+  };
+}
 
 export function AppSettingsProvider({
   children,
@@ -52,6 +77,9 @@ export function AppSettingsProvider({
   const [settings, setSettings] =
     useState<AppSettings>(mockSettings);
 
+  const [hydrated, setHydrated] =
+    useState(false);
+
   useEffect(() => {
     try {
       const stored =
@@ -59,121 +87,117 @@ export function AppSettingsProvider({
           STORAGE_KEY,
         );
 
-      if (!stored) {
-        return;
+      if (stored) {
+        const parsed =
+          JSON.parse(stored) as Partial<AppSettings>;
+
+        setSettings(
+          mergeSettings(
+            mockSettings,
+            parsed,
+          ),
+        );
       }
-
-      const parsed =
-        JSON.parse(stored) as Partial<AppSettings>;
-
-      const mergedSettings: AppSettings = {
-        ...mockSettings,
-        ...parsed,
-
-        modules: {
-          ...mockSettings.modules,
-          ...(parsed.modules ?? {}),
-        },
-
-        center: {
-          ...mockSettings.center,
-          ...(parsed.center ?? {}),
-        },
-
-        attendance: {
-          ...mockSettings.attendance,
-          ...(parsed.attendance ?? {}),
-        },
-
-        notifications: {
-          ...mockSettings.notifications,
-          ...(parsed.notifications ?? {}),
-        },
-      };
-
-      setSettings(mergedSettings);
     } catch {
       setSettings(mockSettings);
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
-  const persist = (
-    next: AppSettings,
-  ) => {
-    setSettings(next);
+  const persist = useCallback(
+    (next: AppSettings) => {
+      setSettings(next);
 
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(next),
-      );
-    } catch {
-      // Keep the UI usable if localStorage is unavailable.
-    }
-  };
+      if (!hydrated) {
+        return;
+      }
 
-  const updateSettings = (
-    patch: Partial<AppSettings>,
-  ) => {
-    const next: AppSettings = {
-      ...settings,
-      ...patch,
+      try {
+        window.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(next),
+        );
+      } catch {
+        // Keep the UI usable if localStorage is unavailable.
+      }
+    },
+    [hydrated],
+  );
 
-      modules: {
-        ...settings.modules,
-        ...(patch.modules ?? {}),
-      },
+  const updateSettings = useCallback(
+    (patch: Partial<AppSettings>) => {
+      setSettings((current) => {
+        const next = mergeSettings(
+          current,
+          patch,
+        );
 
-      center: {
-        ...settings.center,
-        ...(patch.center ?? {}),
-      },
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(next),
+          );
+        } catch {
+          // Keep the UI usable if localStorage is unavailable.
+        }
 
-      attendance: {
-        ...settings.attendance,
-        ...(patch.attendance ?? {}),
-      },
+        return next;
+      });
+    },
+    [],
+  );
 
-      notifications: {
-        ...settings.notifications,
-        ...(patch.notifications ?? {}),
-      },
-    };
+  const setModuleEnabled = useCallback(
+    (
+      module: ModuleKey,
+      enabled: boolean,
+    ) => {
+      setSettings((current) => {
+        const next: AppSettings = {
+          ...current,
 
-    persist(next);
-  };
+          modules: {
+            ...current.modules,
+            [module]: enabled,
+          },
+        };
 
-  const setModuleEnabled = (
-    module: ModuleKey,
-    enabled: boolean,
-  ) => {
-    persist({
-      ...settings,
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(next),
+          );
+        } catch {
+          // Keep the UI usable if localStorage is unavailable.
+        }
 
-      modules: {
-        ...settings.modules,
-        [module]: enabled,
-      },
-    });
-  };
+        return next;
+      });
+    },
+    [],
+  );
+
+  const isModuleEnabled = useCallback(
+    (module: ModuleKey) =>
+      Boolean(settings.modules[module]),
+    [settings.modules],
+  );
 
   const value =
     useMemo<AppSettingsContextValue>(
       () => ({
         settings,
-
-        isModuleEnabled: (
-          module: ModuleKey,
-        ) =>
-          Boolean(
-            settings.modules[module],
-          ),
-
+        isModuleEnabled,
         updateSettings,
-
         setModuleEnabled,
       }),
-      [settings],
+      [
+        settings,
+        isModuleEnabled,
+        updateSettings,
+        setModuleEnabled,
+      ],
     );
 
   return (
@@ -186,7 +210,14 @@ export function AppSettingsProvider({
 }
 
 export function useAppSettings() {
-  return useContext(
-    AppSettingsContext,
-  );
+  const context =
+    useContext(AppSettingsContext);
+
+  if (!context) {
+    throw new Error(
+      "useAppSettings must be used inside AppSettingsProvider",
+    );
+  }
+
+  return context;
 }
