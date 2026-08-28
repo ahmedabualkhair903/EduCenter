@@ -1,9 +1,10 @@
 "use client";
 
 import {
-  FormEvent,
   useEffect,
   useState,
+  type FormEvent,
+  type ReactNode,
 } from "react";
 
 import {
@@ -157,7 +158,7 @@ export default function StudentModal({
       }
     };
 
-    loadCustomFields();
+    void loadCustomFields();
 
     return () => {
       mounted = false;
@@ -362,7 +363,9 @@ export default function StudentModal({
   };
 
   const validate = () => {
-    const nextErrors: typeof errors = {};
+    const nextErrors: Partial<
+      Record<keyof StudentFormData, string>
+    > = {};
 
     if (!form.studentId.trim()) {
       nextErrors.studentId =
@@ -1214,11 +1217,23 @@ function CustomFieldInput({
                 const raw =
                   event.target.value;
 
-                onChange(
-                  raw === ""
-                    ? null
-                    : Number(raw),
-                );
+                if (raw === "") {
+                  onChange(null);
+                  return;
+                }
+
+                const numericValue =
+                  Number(raw);
+
+                if (
+                  Number.isFinite(
+                    numericValue,
+                  )
+                ) {
+                  onChange(
+                    numericValue,
+                  );
+                }
 
                 return;
               }
@@ -1255,7 +1270,7 @@ function Field({
   label: string;
   required?: boolean;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>

@@ -1,8 +1,10 @@
+
 "use client";
 
 import {
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 
 import {
@@ -48,19 +50,13 @@ const groupNames: Record<string, string> = {
   "group-003": "مجموعة ج",
 };
 
-const statusLabels: Record<
-  Student["status"],
-  string
-> = {
+const statusLabels: Record<string, string> = {
   active: "نشط",
   inactive: "غير نشط",
   suspended: "متوقف",
 };
 
-const attendanceLabels: Record<
-  AttendanceRecord["status"],
-  string
-> = {
+const attendanceLabels: Record<string, string> = {
   present: "حاضر",
   absent: "غائب",
   late: "متأخر",
@@ -68,20 +64,14 @@ const attendanceLabels: Record<
   unrecorded: "غير مسجل",
 };
 
-const paymentMethodLabels: Record<
-  Payment["method"],
-  string
-> = {
+const paymentMethodLabels: Record<string, string> = {
   cash: "نقدي",
   bank_transfer: "تحويل بنكي",
   vodafone_cash: "فودافون كاش",
   instapay: "إنستاباي",
 };
 
-const messageStatusLabels: Record<
-  WhatsAppMessage["status"],
-  string
-> = {
+const messageStatusLabels: Record<string, string> = {
   draft: "مسودة",
   scheduled: "مجدولة",
   pending: "قيد الانتظار",
@@ -89,10 +79,7 @@ const messageStatusLabels: Record<
   failed: "فشل الإرسال",
 };
 
-const messageTypeLabels: Record<
-  WhatsAppMessage["type"],
-  string
-> = {
+const messageTypeLabels: Record<string, string> = {
   individual: "فردية",
   group: "مجموعة",
   notification: "إشعار",
@@ -103,10 +90,7 @@ const messageTypeLabels: Record<
   absence: "غياب",
 };
 
-const activityTypeIcons: Record<
-  StudentActivity["type"],
-  React.ReactNode
-> = {
+const activityTypeIcons: Record<string, ReactNode> = {
   created: <FiUser size={15} />,
   updated: <FiEdit2 size={15} />,
   payment: <FiCheckCircle size={15} />,
@@ -173,12 +157,11 @@ export default function StudentProfile({
     .join("");
 
   const groupName = student.groupId
-    ? groupNames[student.groupId] ??
-      "غير محددة"
+    ? groupNames[student.groupId] ?? "غير محددة"
     : "غير محددة";
 
   const statusLabel =
-    statusLabels[student.status];
+    statusLabels[student.status] ?? "غير محدد";
 
   const attendanceStats = useMemo(() => {
     const present = attendance.filter(
@@ -198,15 +181,12 @@ export default function StudentProfile({
     ).length;
 
     const recorded = attendance.filter(
-      (item) =>
-        item.status !== "unrecorded",
+      (item) => item.status !== "unrecorded",
     ).length;
 
     const percentage =
       recorded > 0
-        ? Math.round(
-            (present / recorded) * 100,
-          )
+        ? Math.round((present / recorded) * 100)
         : 0;
 
     return {
@@ -224,23 +204,26 @@ export default function StudentProfile({
       grades.map((grade) => ({
         ...grade,
         exam: exams.find(
-          (exam) =>
-            exam.id === grade.examId,
+          (exam) => exam.id === grade.examId,
         ),
       })),
     [grades, exams],
   );
 
   const handleWhatsApp = () => {
-    const phone =
-      student.guardianPhone.replace(
-        /\D/g,
-        "",
-      );
+    const rawPhone =
+      student.guardianPhone?.replace(/\D/g, "") ?? "";
 
-    if (!phone) {
+    if (!rawPhone) {
       return;
     }
+
+    const phone =
+      rawPhone.startsWith("20")
+        ? rawPhone
+        : rawPhone.startsWith("0")
+          ? `20${rawPhone.slice(1)}`
+          : rawPhone;
 
     window.open(
       `https://wa.me/${phone}`,
@@ -255,8 +238,7 @@ export default function StudentProfile({
           100,
           Math.round(
             (student.financial.paid /
-              student.financial
-                .totalRequired) *
+              student.financial.totalRequired) *
               100,
           ),
         )
@@ -301,11 +283,9 @@ export default function StudentProfile({
 
                     <span
                       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        student.status ===
-                        "active"
+                        student.status === "active"
                           ? "bg-emerald-50 text-emerald-700"
-                          : student.status ===
-                              "suspended"
+                          : student.status === "suspended"
                             ? "bg-amber-50 text-amber-700"
                             : "bg-slate-100 text-slate-600"
                       }`}
@@ -315,8 +295,7 @@ export default function StudentProfile({
                   </div>
 
                   <p className="mt-1 text-xs text-slate-400">
-                    رقم الطالب:{" "}
-                    {student.studentId}
+                    رقم الطالب: {student.studentId}
                   </p>
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
@@ -340,9 +319,7 @@ export default function StudentProfile({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    window.history.back()
-                  }
+                  onClick={() => window.history.back()}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
                 >
                   <FiArrowRight size={16} />
@@ -352,22 +329,16 @@ export default function StudentProfile({
                 <button
                   type="button"
                   onClick={handleWhatsApp}
-                  disabled={
-                    !student.guardianPhone
-                  }
+                  disabled={!student.guardianPhone}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <FiMessageCircle
-                    size={16}
-                  />
+                  <FiMessageCircle size={16} />
                   WhatsApp
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    onEdit(student)
-                  }
+                  onClick={() => onEdit(student)}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 active:scale-[0.98]"
                 >
                   <FiEdit2 size={15} />
@@ -383,9 +354,7 @@ export default function StudentProfile({
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() =>
-                    setActiveTab(tab.id)
-                  }
+                  onClick={() => setActiveTab(tab.id)}
                   className={`relative px-4 py-4 text-xs font-semibold transition ${
                     activeTab === tab.id
                       ? "text-teal-700"
@@ -394,8 +363,7 @@ export default function StudentProfile({
                 >
                   {tab.label}
 
-                  {activeTab ===
-                    tab.id && (
+                  {activeTab === tab.id && (
                     <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-teal-600" />
                   )}
                 </button>
@@ -408,12 +376,8 @@ export default function StudentProfile({
           <OverviewSection
             student={student}
             groupName={groupName}
-            attendanceStats={
-              attendanceStats
-            }
-            paymentPercentage={
-              paymentPercentage
-            }
+            attendanceStats={attendanceStats}
+            paymentPercentage={paymentPercentage}
           />
         )}
 
@@ -425,9 +389,7 @@ export default function StudentProfile({
         )}
 
         {activeTab === "grades" && (
-          <GradesSection
-            grades={gradesWithExams}
-          />
+          <GradesSection grades={gradesWithExams} />
         )}
 
         {activeTab === "attendance" && (
@@ -438,15 +400,11 @@ export default function StudentProfile({
         )}
 
         {activeTab === "messages" && (
-          <MessagesSection
-            messages={messages}
-          />
+          <MessagesSection messages={messages} />
         )}
 
         {activeTab === "activity" && (
-          <ActivitySection
-            activities={activities}
-          />
+          <ActivitySection activities={activities} />
         )}
       </div>
     </main>
@@ -504,8 +462,7 @@ function OverviewSection({
           )} ج.م`}
           description="المستحق الحالي"
           className={
-            student.financial
-              .remaining > 0
+            student.financial.remaining > 0
               ? "text-amber-600"
               : "text-emerald-600"
           }
@@ -541,10 +498,7 @@ function OverviewSection({
 
             <Detail
               label="هاتف الطالب"
-              value={
-                student.phone ||
-                "غير مسجل"
-              }
+              value={student.phone || "غير مسجل"}
               direction="ltr"
             />
 
@@ -556,18 +510,14 @@ function OverviewSection({
             <Detail
               label="هاتف ولي الأمر"
               value={
-                student.guardianPhone ||
-                "غير مسجل"
+                student.guardianPhone || "غير مسجل"
               }
               direction="ltr"
             />
 
             <Detail
               label="العنوان"
-              value={
-                student.address ||
-                "غير مسجل"
-              }
+              value={student.address || "غير مسجل"}
             />
           </div>
         </Panel>
@@ -579,28 +529,20 @@ function OverviewSection({
           <div className="grid gap-3 sm:grid-cols-3">
             <MiniFinance
               label="المطلوب"
-              value={
-                student.financial
-                  .totalRequired
-              }
+              value={student.financial.totalRequired}
             />
 
             <MiniFinance
               label="المدفوع"
-              value={
-                student.financial.paid
-              }
+              value={student.financial.paid}
               positive
             />
 
             <MiniFinance
               label="المتبقي"
-              value={
-                student.financial.remaining
-              }
+              value={student.financial.remaining}
               warning={
-                student.financial
-                  .remaining > 0
+                student.financial.remaining > 0
               }
             />
           </div>
@@ -639,29 +581,23 @@ function OverviewSection({
         </Panel>
       )}
 
-      {student.customFields.length >
-        0 && (
+      {student.customFields.length > 0 && (
         <Panel
           title="البيانات الإضافية"
           description="الحقول المخصصة المسجلة للطالب"
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {student.customFields.map(
-              (field) => (
-                <Detail
-                  key={field.fieldId}
-                  label={field.fieldId}
-                  value={
-                    field.value ===
-                    null
-                      ? "غير مسجل"
-                      : String(
-                          field.value,
-                        )
-                  }
-                />
-              ),
-            )}
+            {student.customFields.map((field) => (
+              <Detail
+                key={field.fieldId}
+                label={field.fieldId}
+                value={
+                  field.value === null
+                    ? "غير مسجل"
+                    : String(field.value)
+                }
+              />
+            ))}
           </div>
         </Panel>
       )}
@@ -700,8 +636,7 @@ function FinanceSection({
             "ar-EG",
           )} ج.م`}
           className={
-            student.financial
-              .remaining > 0
+            student.financial.remaining > 0
               ? "text-amber-600"
               : "text-emerald-600"
           }
@@ -719,58 +654,43 @@ function FinanceSection({
             <table className="w-full min-w-[650px] text-right">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <TableHead>
-                    التاريخ
-                  </TableHead>
-                  <TableHead>
-                    المبلغ
-                  </TableHead>
-                  <TableHead>
-                    طريقة الدفع
-                  </TableHead>
-                  <TableHead>
-                    ملاحظات
-                  </TableHead>
+                  <TableHead>التاريخ</TableHead>
+                  <TableHead>المبلغ</TableHead>
+                  <TableHead>طريقة الدفع</TableHead>
+                  <TableHead>ملاحظات</TableHead>
                 </tr>
               </thead>
 
               <tbody>
-                {payments.map(
-                  (payment) => (
-                    <tr
-                      key={payment.id}
-                      className="border-b border-slate-50 last:border-0"
-                    >
-                      <TableCell>
-                        {formatDate(
-                          payment.paidAt,
-                        )}
-                      </TableCell>
+                {payments.map((payment) => (
+                  <tr
+                    key={payment.id}
+                    className="border-b border-slate-50 last:border-0"
+                  >
+                    <TableCell>
+                      {formatDate(payment.paidAt)}
+                    </TableCell>
 
-                      <TableCell>
-                        <span className="font-semibold text-emerald-600">
-                          {payment.amount.toLocaleString(
-                            "ar-EG",
-                          )}{" "}
-                          ج.م
-                        </span>
-                      </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-emerald-600">
+                        {payment.amount.toLocaleString(
+                          "ar-EG",
+                        )}{" "}
+                        ج.م
+                      </span>
+                    </TableCell>
 
-                      <TableCell>
-                        {
-                          paymentMethodLabels[
-                            payment.method
-                          ]
-                        }
-                      </TableCell>
+                    <TableCell>
+                      {paymentMethodLabels[
+                        payment.method
+                      ] ?? payment.method}
+                    </TableCell>
 
-                      <TableCell>
-                        {payment.notes ||
-                          "—"}
-                      </TableCell>
-                    </tr>
-                  ),
-                )}
+                    <TableCell>
+                      {payment.notes || "—"}
+                    </TableCell>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -795,26 +715,22 @@ function GradesSection({
     }
   >;
 }) {
-  const approvedGrades =
-    grades.filter(
-      (grade) =>
-        grade.score !== null &&
-        grade.exam,
-    );
+  const gradesWithResults = grades.filter(
+    (grade) =>
+      grade.score !== null && grade.exam,
+  );
 
   const average =
-    approvedGrades.length > 0
+    gradesWithResults.length > 0
       ? Math.round(
-          approvedGrades.reduce(
+          gradesWithResults.reduce(
             (total, grade) =>
               total +
               ((grade.score ?? 0) /
-                (grade.exam
-                  ?.maxScore || 1)) *
+                (grade.exam?.maxScore || 1)) *
                 100,
             0,
-          ) /
-            approvedGrades.length,
+          ) / gradesWithResults.length,
         )
       : 0;
 
@@ -838,9 +754,7 @@ function GradesSection({
           label="نتائج معتمدة"
           value={
             grades.filter(
-              (grade) =>
-                grade.status ===
-                "approved",
+              (grade) => grade.status === "approved",
             ).length
           }
           description="نتائج تم اعتمادها"
@@ -859,110 +773,80 @@ function GradesSection({
             <table className="w-full min-w-[700px] text-right">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <TableHead>
-                    الاختبار
-                  </TableHead>
-                  <TableHead>
-                    المادة
-                  </TableHead>
-                  <TableHead>
-                    التاريخ
-                  </TableHead>
-                  <TableHead>
-                    الدرجة
-                  </TableHead>
-                  <TableHead>
-                    الحالة
-                  </TableHead>
+                  <TableHead>الاختبار</TableHead>
+                  <TableHead>المادة</TableHead>
+                  <TableHead>التاريخ</TableHead>
+                  <TableHead>الدرجة</TableHead>
+                  <TableHead>الحالة</TableHead>
                 </tr>
               </thead>
 
               <tbody>
-                {grades.map(
-                  (grade) => {
-                    const percentage =
-                      grade.exam &&
-                      grade.score !==
-                        null
-                        ? Math.round(
-                            (grade.score /
-                              grade.exam
-                                .maxScore) *
-                              100,
-                          )
-                        : null;
+                {grades.map((grade) => {
+                  const percentage =
+                    grade.exam &&
+                    grade.score !== null
+                      ? Math.round(
+                          (grade.score /
+                            grade.exam.maxScore) *
+                            100,
+                        )
+                      : null;
 
-                    return (
-                      <tr
-                        key={
-                          grade.id
-                        }
-                        className="border-b border-slate-50 last:border-0"
-                      >
-                        <TableCell>
-                          {grade.exam
-                            ?.name ||
-                            "اختبار غير معروف"}
-                        </TableCell>
+                  return (
+                    <tr
+                      key={grade.id}
+                      className="border-b border-slate-50 last:border-0"
+                    >
+                      <TableCell>
+                        {grade.exam?.name ||
+                          "اختبار غير معروف"}
+                      </TableCell>
 
-                        <TableCell>
-                          {grade.exam
-                            ?.subject ||
-                            "—"}
-                        </TableCell>
+                      <TableCell>
+                        {grade.exam?.subject || "—"}
+                      </TableCell>
 
-                        <TableCell>
-                          {grade.exam
-                            ? formatDate(
-                                grade
-                                  .exam
-                                  .date,
-                              )
-                            : "—"}
-                        </TableCell>
+                      <TableCell>
+                        {grade.exam
+                          ? formatDate(
+                              grade.exam.date,
+                            )
+                          : "—"}
+                      </TableCell>
 
-                        <TableCell>
-                          {grade.score ===
-                          null ? (
-                            <span className="text-slate-400">
-                              لم ترصد
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-slate-700">
-                              {
-                                grade.score
-                              }{" "}
-                              /{" "}
-                              {
-                                grade.exam
-                                  ?.maxScore
-                              }{" "}
-                              <span className="text-xs text-slate-400">
-                                ({percentage}%)
-                              </span>
-                            </span>
-                          )}
-                        </TableCell>
-
-                        <TableCell>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              grade.status ===
-                              "approved"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-amber-50 text-amber-700"
-                            }`}
-                          >
-                            {grade.status ===
-                            "approved"
-                              ? "معتمدة"
-                              : "معلقة"}
+                      <TableCell>
+                        {grade.score === null ? (
+                          <span className="text-slate-400">
+                            لم ترصد
                           </span>
-                        </TableCell>
-                      </tr>
-                    );
-                  },
-                )}
+                        ) : (
+                          <span className="font-semibold text-slate-700">
+                            {grade.score} /{" "}
+                            {grade.exam?.maxScore ?? "—"}{" "}
+                            <span className="text-xs text-slate-400">
+                              ({percentage}%)
+                            </span>
+                          </span>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            grade.status === "approved"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {grade.status === "approved"
+                            ? "معتمدة"
+                            : "معلقة"}
+                        </span>
+                      </TableCell>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1029,93 +913,71 @@ function AttendanceSection({
             <table className="w-full min-w-[750px] text-right">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <TableHead>
-                    الحصة
-                  </TableHead>
-                  <TableHead>
-                    الحالة
-                  </TableHead>
-                  <TableHead>
-                    الدخول
-                  </TableHead>
-                  <TableHead>
-                    الخروج
-                  </TableHead>
-                  <TableHead>
-                    الموقع
-                  </TableHead>
+                  <TableHead>الحصة</TableHead>
+                  <TableHead>الحالة</TableHead>
+                  <TableHead>الدخول</TableHead>
+                  <TableHead>الخروج</TableHead>
+                  <TableHead>الموقع</TableHead>
                 </tr>
               </thead>
 
               <tbody>
-                {attendance.map(
-                  (record) => (
-                    <tr
-                      key={record.id}
-                      className="border-b border-slate-50 last:border-0"
-                    >
-                      <TableCell>
-                        {record.lessonId}
-                      </TableCell>
+                {attendance.map((record) => (
+                  <tr
+                    key={record.id}
+                    className="border-b border-slate-50 last:border-0"
+                  >
+                    <TableCell>
+                      {record.lessonId}
+                    </TableCell>
 
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${attendanceStatusClass(
-                            record.status,
-                          )}`}
-                        >
-                          {record.status ===
-                          "present" ? (
-                            <FiCheckCircle
-                              size={12}
-                            />
-                          ) : record.status ===
-                            "absent" ? (
-                            <FiXCircle
-                              size={12}
-                            />
-                          ) : (
-                            <FiClock
-                              size={12}
-                            />
-                          )}
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${attendanceStatusClass(
+                          record.status,
+                        )}`}
+                      >
+                        {record.status === "present" ? (
+                          <FiCheckCircle size={12} />
+                        ) : record.status === "absent" ? (
+                          <FiXCircle size={12} />
+                        ) : (
+                          <FiClock size={12} />
+                        )}
 
-                          {
-                            attendanceLabels[
-                              record.status
-                            ]
-                          }
-                        </span>
-                      </TableCell>
+                        {attendanceLabels[
+                          record.status
+                        ] ?? record.status}
+                      </span>
+                    </TableCell>
 
-                      <TableCell>
-                        {record.checkedInAt
-                          ? formatDateTime(
-                              record.checkedInAt,
-                            )
-                          : "—"}
-                      </TableCell>
+                    <TableCell>
+                      {record.checkedInAt
+                        ? formatDateTime(
+                            record.checkedInAt,
+                          )
+                        : "—"}
+                    </TableCell>
 
-                      <TableCell>
-                        {record.checkedOutAt
-                          ? formatDateTime(
-                              record.checkedOutAt,
-                            )
-                          : "—"}
-                      </TableCell>
+                    <TableCell>
+                      {record.checkedOutAt
+                        ? formatDateTime(
+                            record.checkedOutAt,
+                          )
+                        : "—"}
+                    </TableCell>
 
-                      <TableCell>
-                        {record.locationStatus ===
-                        "allowed"
-                          ? "داخل النطاق"
-                          : record.locationStatus ===
+                    <TableCell>
+                      {record.locationStatus ===
+                      "allowed"
+                        ? "داخل النطاق"
+                        : record.locationStatus ===
                             "outside"
                           ? "خارج النطاق"
                           : "غير معروف"}
-                      </TableCell>
-                    </tr>
-                  ),
-                )}
+                    </TableCell>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1140,67 +1002,59 @@ function MessagesSection({
           <EmptyState text="لا توجد رسائل مسجلة." />
         ) : (
           <div className="space-y-3">
-            {messages.map(
-              (message) => (
-                <div
-                  key={message.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
-                          {
-                            messageTypeLabels[
-                              message.type
-                            ]
-                          }
-                        </span>
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
+                        {messageTypeLabels[
+                          message.type
+                        ] ?? message.type}
+                      </span>
 
-                        <span
-                          className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                            message.status ===
-                            "sent"
-                              ? "bg-emerald-50 text-emerald-700"
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                          message.status === "sent"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : message.status === "failed"
+                              ? "bg-red-50 text-red-600"
                               : message.status ===
-                                  "failed"
-                                ? "bg-red-50 text-red-600"
-                                : message.status ===
-                                    "pending"
-                                  ? "bg-blue-50 text-blue-700"
-                                  : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {
-                            messageStatusLabels[
-                              message.status
-                            ]
-                          }
-                        </span>
-                      </div>
-
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                        {message.content ||
-                          "لا يوجد محتوى للرسالة."}
-                      </p>
+                                  "pending"
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {messageStatusLabels[
+                          message.status
+                        ] ?? message.status}
+                      </span>
                     </div>
 
-                    <div className="shrink-0 text-xs text-slate-400 sm:text-left">
-                      {formatDateTime(
-                        message.sentAt ||
-                          message.createdAt,
-                      )}
-                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                      {message.content ||
+                        "لا يوجد محتوى للرسالة."}
+                    </p>
                   </div>
 
-                  {message.error && (
-                    <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-                      {message.error}
-                    </div>
-                  )}
+                  <div className="shrink-0 text-xs text-slate-400 sm:text-left">
+                    {formatDateTime(
+                      message.sentAt ||
+                        message.createdAt,
+                    )}
+                  </div>
                 </div>
-              ),
-            )}
+
+                {message.error && (
+                  <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+                    {message.error}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </Panel>
@@ -1223,50 +1077,42 @@ function ActivitySection({
           <EmptyState text="لا يوجد نشاط مسجل لهذا الطالب." />
         ) : (
           <div className="relative space-y-4">
-            {activities.map(
-              (activity, index) => (
-                <div
-                  key={activity.id}
-                  className="relative flex gap-3"
-                >
-                  {index <
-                    activities.length -
-                      1 && (
-                    <span className="absolute right-[15px] top-9 h-[calc(100%+16px)] w-px bg-slate-200" />
+            {activities.map((activity, index) => (
+              <div
+                key={activity.id}
+                className="relative flex gap-3"
+              >
+                {index < activities.length - 1 && (
+                  <span className="absolute right-[15px] top-9 h-[calc(100%+16px)] w-px bg-slate-200" />
+                )}
+
+                <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+                  {activityTypeIcons[activity.type] ?? (
+                    <FiUser size={15} />
                   )}
-
-                  <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-                    {
-                      activityTypeIcons[
-                        activity.type
-                      ]
-                    }
-                  </div>
-
-                  <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-sm font-semibold text-slate-700">
-                        {activity.title}
-                      </p>
-
-                      <span className="text-[11px] text-slate-400">
-                        {formatDateTime(
-                          activity.createdAt,
-                        )}
-                      </span>
-                    </div>
-
-                    {activity.description && (
-                      <p className="mt-1 text-xs leading-5 text-slate-400">
-                        {
-                          activity.description
-                        }
-                      </p>
-                    )}
-                  </div>
                 </div>
-              ),
-            )}
+
+                <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-semibold text-slate-700">
+                      {activity.title}
+                    </p>
+
+                    <span className="text-[11px] text-slate-400">
+                      {formatDateTime(
+                        activity.createdAt,
+                      )}
+                    </span>
+                  </div>
+
+                  {activity.description && (
+                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                      {activity.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Panel>
@@ -1281,7 +1127,7 @@ function Panel({
 }: {
   title: string;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1295,9 +1141,7 @@ function Panel({
         </p>
       </div>
 
-      <div className="p-5 sm:p-6">
-        {children}
-      </div>
+      <div className="p-5 sm:p-6">{children}</div>
     </section>
   );
 }
@@ -1322,11 +1166,8 @@ function StatCard({
       <p
         className={`mt-2 text-xl font-bold ${className}`}
       >
-        {typeof value ===
-        "number"
-          ? value.toLocaleString(
-              "ar-EG",
-            )
+        {typeof value === "number"
+          ? value.toLocaleString("ar-EG")
           : value}
       </p>
 
@@ -1390,10 +1231,7 @@ function MiniFinance({
               : "text-slate-700"
         }`}
       >
-        {value.toLocaleString(
-          "ar-EG",
-        )}{" "}
-        ج.م
+        {value.toLocaleString("ar-EG")} ج.م
       </p>
     </div>
   );
@@ -1402,7 +1240,7 @@ function MiniFinance({
 function TableHead({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <th className="px-4 py-3 text-xs font-semibold text-slate-400">
@@ -1414,7 +1252,7 @@ function TableHead({
 function TableCell({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <td className="px-4 py-3 text-xs text-slate-600">
@@ -1457,25 +1295,19 @@ function attendanceStatusClass(
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat(
-    "ar-EG",
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    },
-  ).format(new Date(value));
+  return new Intl.DateTimeFormat("ar-EG", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat(
-    "ar-EG",
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    },
-  ).format(new Date(value));
+  return new Intl.DateTimeFormat("ar-EG", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }

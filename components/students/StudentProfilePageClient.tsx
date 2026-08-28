@@ -179,16 +179,12 @@ export default function StudentProfileContent({
 
       case "messages":
         return (
-          <MessagesTab
-            messages={messages}
-          />
+          <MessagesTab messages={messages} />
         );
 
       case "activity":
         return (
-          <ActivityTab
-            activities={activities}
-          />
+          <ActivityTab activities={activities} />
         );
 
       case "overview":
@@ -203,9 +199,7 @@ export default function StudentProfileContent({
             activities={activities}
             exams={exams}
             totalPaid={totalPaid}
-            attendanceRate={
-              attendanceStats.rate
-            }
+            attendanceRate={attendanceStats.rate}
             onEdit={onEdit}
           />
         );
@@ -222,9 +216,7 @@ export default function StudentProfileContent({
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() =>
-                window.history.back()
-              }
+              onClick={() => window.history.back()}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
               aria-label="رجوع"
             >
@@ -246,8 +238,8 @@ export default function StudentProfileContent({
                     student.status === "active"
                       ? "bg-emerald-50 text-emerald-700"
                       : student.status === "suspended"
-                      ? "bg-amber-50 text-amber-700"
-                      : "bg-slate-100 text-slate-600"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-slate-100 text-slate-600"
                   }`}
                 >
                   {studentStatusLabels[
@@ -262,7 +254,10 @@ export default function StudentProfileContent({
                 </span>
 
                 {student.phone && (
-                  <span className="flex items-center gap-1">
+                  <span
+                    dir="ltr"
+                    className="flex items-center gap-1"
+                  >
                     <FiPhone size={14} />
                     {student.phone}
                   </span>
@@ -286,9 +281,7 @@ export default function StudentProfileContent({
             icon={<FiUser size={18} />}
             label="حالة الطالب"
             value={
-              studentStatusLabels[
-                student.status
-              ]
+              studentStatusLabels[student.status]
             }
           />
 
@@ -417,8 +410,7 @@ function OverviewTab({
           icon={<FiUser size={15} />}
           label="اسم ولي الأمر"
           value={
-            student.guardianName ||
-            "غير متوفر"
+            student.guardianName || "غير متوفر"
           }
         />
 
@@ -426,8 +418,7 @@ function OverviewTab({
           icon={<FiPhone size={15} />}
           label="هاتف ولي الأمر"
           value={
-            student.guardianPhone ||
-            "غير متوفر"
+            student.guardianPhone || "غير متوفر"
           }
           direction="ltr"
         />
@@ -467,7 +458,7 @@ function OverviewTab({
             description="ملاحظات إضافية خاصة بالطالب."
           />
 
-          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600">
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-600">
             {student.notes}
           </p>
         </section>
@@ -479,26 +470,30 @@ function OverviewTab({
           description="نظرة مختصرة على أهم بيانات الطالب."
         />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <FinanceCard
             label="إجمالي المدفوع"
             value={totalPaid}
+            unit="ج.م"
             positive
           />
 
           <FinanceCard
             label="عدد الدرجات"
             value={grades.length}
+            unit="درجة"
           />
 
           <FinanceCard
             label="سجلات الحضور"
             value={attendance.length}
+            unit="سجل"
           />
 
           <FinanceCard
             label="الرسائل"
             value={messages.length}
+            unit="رسالة"
           />
         </div>
       </section>
@@ -512,7 +507,7 @@ function OverviewTab({
         {exams.length === 0 ? (
           <EmptyState text="لا توجد اختبارات مسجلة." />
         ) : (
-          <div className="space-y-2">
+          <div className="mt-4 space-y-2">
             {exams.slice(0, 5).map((exam) => (
               <div
                 key={exam.id}
@@ -544,10 +539,9 @@ function OverviewTab({
             description="آخر العمليات المسجلة على ملف الطالب."
           />
 
-          <div className="space-y-3">
-            {activities
-              .slice(0, 5)
-              .map((activity) => (
+          <div className="mt-4 space-y-3">
+            {activities.slice(0, 5).map(
+              (activity) => (
                 <div
                   key={activity.id}
                   className="flex gap-3 rounded-xl border border-slate-100 p-3"
@@ -574,19 +568,29 @@ function OverviewTab({
                     </p>
                   </div>
                 </div>
-              ))}
+              ),
+            )}
           </div>
         </section>
       )}
 
-      <button
-        type="button"
-        onClick={onEdit}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-      >
-        <FiEdit2 size={16} />
-        تعديل بيانات الطالب
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <FinanceCard
+          label="نسبة الحضور"
+          value={attendanceRate}
+          unit="%"
+          positive
+        />
+
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          <FiEdit2 size={16} />
+          تعديل بيانات الطالب
+        </button>
+      </div>
     </div>
   );
 }
@@ -609,12 +613,14 @@ function PaymentsTab({
         <FinanceCard
           label="إجمالي المدفوع"
           value={totalPaid}
+          unit="ج.م"
           positive
         />
 
         <FinanceCard
           label="عدد عمليات الدفع"
           value={payments.length}
+          unit="عملية"
         />
       </div>
 
@@ -629,12 +635,15 @@ function PaymentsTab({
                   <th className="px-4 py-3">
                     التاريخ
                   </th>
+
                   <th className="px-4 py-3">
                     المبلغ
                   </th>
+
                   <th className="px-4 py-3">
                     طريقة الدفع
                   </th>
+
                   <th className="px-4 py-3">
                     الحالة
                   </th>
@@ -711,12 +720,15 @@ function GradesTab({
                   <th className="px-4 py-3">
                     الاختبار
                   </th>
+
                   <th className="px-4 py-3">
                     المادة
                   </th>
+
                   <th className="px-4 py-3">
                     الدرجة
                   </th>
+
                   <th className="px-4 py-3">
                     الحالة
                   </th>
@@ -875,11 +887,11 @@ function AttendanceTab({
                           ? "bg-emerald-500"
                           : record.status ===
                             "late"
-                          ? "bg-amber-500"
-                          : record.status ===
-                            "excused"
-                          ? "bg-blue-500"
-                          : "bg-red-500"
+                            ? "bg-amber-500"
+                            : record.status ===
+                              "excused"
+                              ? "bg-blue-500"
+                              : "bg-red-500"
                       }`}
                     />
 
@@ -962,15 +974,13 @@ function MessagesTab({
                             ? "bg-emerald-50 text-emerald-700"
                             : message.status ===
                               "failed"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-slate-100 text-slate-600"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {
-                          messageStatusLabels[
-                            message.status
-                          ]
-                        }
+                        {messageStatusLabels[
+                          message.status
+                        ] || "غير محدد"}
                       </span>
                     </div>
 
@@ -1150,11 +1160,13 @@ function StatCard({
 function FinanceCard({
   label,
   value,
+  unit,
   positive = false,
   warning = false,
 }: {
   label: string;
   value: number;
+  unit?: string;
   positive?: boolean;
   warning?: boolean;
 }) {
@@ -1169,11 +1181,16 @@ function FinanceCard({
           warning
             ? "text-amber-600"
             : positive
-            ? "text-emerald-600"
-            : "text-slate-800"
+              ? "text-emerald-600"
+              : "text-slate-800"
         }`}
       >
-        {value.toLocaleString("ar-EG")} ج.م
+        {value.toLocaleString("ar-EG")}
+        {unit && (
+          <span className="mr-1 text-sm font-medium">
+            {unit}
+          </span>
+        )}
       </p>
     </div>
   );

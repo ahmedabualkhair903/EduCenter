@@ -78,8 +78,7 @@ const initialMessages: MessageRecord[] = [
     status: "scheduled",
     title: "تذكير بالرسوم الدراسية",
     recipient: "الطلاب المتأخرون في الدفع",
-    content:
-      "يرجى التوجه إلى إدارة المركز لسداد المبلغ المتبقي.",
+    content: "يرجى التوجه إلى إدارة المركز لسداد المبلغ المتبقي.",
     createdAt: "2026-08-24T10:00:00",
     recipientsCount: 38,
     scheduledDate: "24 أغسطس 2026",
@@ -192,7 +191,8 @@ export default function MessagesPage() {
         .toLowerCase();
 
       const matchesSearch =
-        !query || searchableText.includes(query);
+        query.length === 0 ||
+        searchableText.includes(query);
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -627,9 +627,11 @@ export default function MessagesPage() {
                               {message.scheduledDate}
                             </p>
 
-                            <p className="mt-1 text-[10px] text-slate-400">
-                              {message.scheduledTime}
-                            </p>
+                            {message.scheduledTime && (
+                              <p className="mt-1 text-[10px] text-slate-400">
+                                {message.scheduledTime}
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-slate-400">
@@ -931,11 +933,11 @@ function MessageModal({
       scheduledDate:
         status === "draft"
           ? undefined
-          : date.trim(),
+          : date.trim() || undefined,
       scheduledTime:
         status === "draft"
           ? undefined
-          : time.trim(),
+          : time.trim() || undefined,
       studentId: message?.studentId ?? "",
       guardianPhone:
         message?.guardianPhone ?? "",
@@ -1007,9 +1009,7 @@ function MessageModal({
               <input
                 value={recipient}
                 onChange={(event) => {
-                  setRecipient(
-                    event.target.value,
-                  );
+                  setRecipient(event.target.value);
                   setError("");
                 }}
                 placeholder="اسم الطالب أو المجموعة"
@@ -1022,8 +1022,7 @@ function MessageModal({
                 value={type}
                 onChange={(event) => {
                   setType(
-                    event.target
-                      .value as MessageType,
+                    event.target.value as MessageType,
                   );
                   setError("");
                 }}
@@ -1032,24 +1031,31 @@ function MessageModal({
                 <option value="individual">
                   فردية
                 </option>
+
                 <option value="group">
                   مجموعة
                 </option>
+
                 <option value="examResult">
                   نتائج الامتحانات
                 </option>
+
                 <option value="attendance">
                   حضور
                 </option>
+
                 <option value="checkOut">
                   انصراف
                 </option>
+
                 <option value="absence">
                   غياب
                 </option>
+
                 <option value="notification">
                   إشعار
                 </option>
+
                 <option value="reminder">
                   تذكير
                 </option>
@@ -1077,9 +1083,7 @@ function MessageModal({
                 <textarea
                   value={content}
                   onChange={(event) => {
-                    setContent(
-                      event.target.value,
-                    );
+                    setContent(event.target.value);
                     setError("");
                   }}
                   placeholder="اكتب محتوى الرسالة هنا..."
@@ -1092,10 +1096,17 @@ function MessageModal({
               <select
                 value={status}
                 onChange={(event) => {
-                  setStatus(
+                  const nextStatus =
                     event.target
-                      .value as MessageStatus,
-                  );
+                      .value as MessageStatus;
+
+                  setStatus(nextStatus);
+
+                  if (nextStatus === "draft") {
+                    setDate("");
+                    setTime("");
+                  }
+
                   setError("");
                 }}
                 className="field"
@@ -1103,15 +1114,19 @@ function MessageModal({
                 <option value="draft">
                   مسودة
                 </option>
+
                 <option value="pending">
                   Pending
                 </option>
+
                 <option value="scheduled">
                   مجدولة
                 </option>
+
                 <option value="sent">
                   Sent
                 </option>
+
                 <option value="failed">
                   Failed
                 </option>
@@ -1120,6 +1135,7 @@ function MessageModal({
 
             <MessageField label="التاريخ">
               <input
+                type="text"
                 value={date}
                 onChange={(event) =>
                   setDate(event.target.value)
@@ -1132,6 +1148,7 @@ function MessageModal({
 
             <MessageField label="الوقت">
               <input
+                type="text"
                 value={time}
                 onChange={(event) =>
                   setTime(event.target.value)

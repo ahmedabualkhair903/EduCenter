@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -39,6 +40,10 @@ const AppSettingsContext =
     null,
   );
 
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
 function mergeSettings(
   base: AppSettings,
   patch: Partial<AppSettings>,
@@ -69,6 +74,23 @@ function mergeSettings(
   };
 }
 
+function saveSettings(
+  settings: AppSettings,
+) {
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(settings),
+    );
+  } catch {
+    // localStorage may be unavailable.
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Provider                                                                   */
+/* -------------------------------------------------------------------------- */
+
 export function AppSettingsProvider({
   children,
 }: {
@@ -80,6 +102,10 @@ export function AppSettingsProvider({
   const [hydrated, setHydrated] =
     useState(false);
 
+  /* ------------------------------------------------------------------------ */
+  /* Load persisted settings                                                  */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
     try {
       const stored =
@@ -87,16 +113,27 @@ export function AppSettingsProvider({
           STORAGE_KEY,
         );
 
-      if (stored) {
-        const parsed =
-          JSON.parse(stored) as Partial<AppSettings>;
+      if (!stored) {
+        setSettings(mockSettings);
+        return;
+      }
 
+      const parsed: unknown =
+        JSON.parse(stored);
+
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed)
+      ) {
         setSettings(
           mergeSettings(
             mockSettings,
-            parsed,
+            parsed as Partial<AppSettings>,
           ),
         );
+      } else {
+        setSettings(mockSettings);
       }
     } catch {
       setSettings(mockSettings);
@@ -105,25 +142,9 @@ export function AppSettingsProvider({
     }
   }, []);
 
-  const persist = useCallback(
-    (next: AppSettings) => {
-      setSettings(next);
-
-      if (!hydrated) {
-        return;
-      }
-
-      try {
-        window.localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(next),
-        );
-      } catch {
-        // Keep the UI usable if localStorage is unavailable.
-      }
-    },
-    [hydrated],
-  );
+  /* ------------------------------------------------------------------------ */
+  /* Update settings                                                          */
+  /* ------------------------------------------------------------------------ */
 
   const updateSettings = useCallback(
     (patch: Partial<AppSettings>) => {
@@ -133,20 +154,19 @@ export function AppSettingsProvider({
           patch,
         );
 
-        try {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(next),
-          );
-        } catch {
-          // Keep the UI usable if localStorage is unavailable.
+        if (hydrated) {
+          saveSettings(next);
         }
 
         return next;
       });
     },
-    [],
+    [hydrated],
   );
+
+  /* ------------------------------------------------------------------------ */
+  /* Toggle module                                                            */
+  /* ------------------------------------------------------------------------ */
 
   const setModuleEnabled = useCallback(
     (
@@ -163,26 +183,29 @@ export function AppSettingsProvider({
           },
         };
 
-        try {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(next),
-          );
-        } catch {
-          // Keep the UI usable if localStorage is unavailable.
+        if (hydrated) {
+          saveSettings(next);
         }
 
         return next;
       });
     },
-    [],
+    [hydrated],
   );
+
+  /* ------------------------------------------------------------------------ */
+  /* Module helper                                                             */
+  /* ------------------------------------------------------------------------ */
 
   const isModuleEnabled = useCallback(
     (module: ModuleKey) =>
       Boolean(settings.modules[module]),
     [settings.modules],
   );
+
+  /* ------------------------------------------------------------------------ */
+  /* Context value                                                             */
+  /* ------------------------------------------------------------------------ */
 
   const value =
     useMemo<AppSettingsContextValue>(
@@ -200,6 +223,10 @@ export function AppSettingsProvider({
       ],
     );
 
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                    */
+  /* ------------------------------------------------------------------------ */
+
   return (
     <AppSettingsContext.Provider
       value={value}
@@ -208,6 +235,10 @@ export function AppSettingsProvider({
     </AppSettingsContext.Provider>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Hook                                                                       */
+/* -------------------------------------------------------------------------- */
 
 export function useAppSettings() {
   const context =

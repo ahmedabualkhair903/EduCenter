@@ -1,6 +1,11 @@
+
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   FiBarChart2,
   FiBookOpen,
@@ -28,7 +33,7 @@ type ReportCard = {
   type: ReportType;
   title: string;
   description: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   module: ModuleKey;
 };
 
@@ -112,17 +117,8 @@ const summaryData: Record<
   },
 };
 
-const REPORT_TYPES: ReportType[] = [
-  "students",
-  "attendance",
-  "payments",
-  "groups",
-  "exams",
-];
-
 export default function ReportsPage() {
-  const { settings, isModuleEnabled } =
-    useAppSettings();
+  const { isModuleEnabled } = useAppSettings();
 
   const [period, setPeriod] =
     useState("هذا الشهر");
@@ -135,7 +131,7 @@ export default function ReportsPage() {
       reportCards.filter((report) =>
         isModuleEnabled(report.module),
       ),
-    [isModuleEnabled, settings.modules],
+    [isModuleEnabled],
   );
 
   const selectedReport = useMemo(() => {
@@ -172,7 +168,7 @@ export default function ReportsPage() {
       selectedReport.type,
     );
 
-    const csvRows = [
+    const csvRows: string[][] = [
       ["التقرير", selectedReport.title],
       ["الفترة", period],
       [],
@@ -364,18 +360,14 @@ export default function ReportsPage() {
             label={summaryData.attendance.label}
             value={summaryData.attendance.value}
             trend={summaryData.attendance.trend}
-            icon={
-              <FiCheckCircle size={18} />
-            }
+            icon={<FiCheckCircle size={18} />}
           />
 
           <SummaryCard
             label={summaryData.payments.label}
             value={summaryData.payments.value}
             trend={summaryData.payments.trend}
-            icon={
-              <FiDollarSign size={18} />
-            }
+            icon={<FiDollarSign size={18} />}
           />
 
           <SummaryCard
@@ -525,8 +517,18 @@ export default function ReportsPage() {
 
               <div className="flex h-48 items-end gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white px-4 py-5">
                 {[
-                  45, 62, 51, 74, 68, 86, 78, 92, 81, 96,
-                  88, 100,
+                  45,
+                  62,
+                  51,
+                  74,
+                  68,
+                  86,
+                  78,
+                  92,
+                  81,
+                  96,
+                  88,
+                  100,
                 ].map(
                   (height, index) => (
                     <div
@@ -547,7 +549,6 @@ export default function ReportsPage() {
 
               <div className="mt-3 flex justify-between text-[10px] text-slate-400">
                 <span>الأسبوع 1</span>
-
                 <span>الأسبوع 12</span>
               </div>
             </div>
@@ -662,7 +663,7 @@ function SummaryCard({
   label: string;
   value: string;
   trend: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   negative?: boolean;
 }) {
   return (

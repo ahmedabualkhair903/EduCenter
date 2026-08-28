@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -36,10 +37,7 @@ type Group = {
   status: GroupStatus;
 };
 
-const GROUP_STATUSES: GroupStatus[] = [
-  "نشطة",
-  "متوقفة",
-];
+const GROUP_STATUSES: GroupStatus[] = ["نشطة", "متوقفة"];
 
 const initialGroups: Group[] = [
   {
@@ -134,12 +132,7 @@ const teachers = [
   "سارة محمد",
 ];
 
-const rooms = [
-  "قاعة 1",
-  "قاعة 2",
-  "قاعة 3",
-  "قاعة 4",
-];
+const rooms = ["قاعة 1", "قاعة 2", "قاعة 3", "قاعة 4"];
 
 const schedules = [
   "السبت - الاثنين - الأربعاء",
@@ -152,37 +145,35 @@ const schedules = [
 const PAGE_SIZE = 5;
 
 export default function GroupsPage() {
-  const [groups, setGroups] =
-    useState<Group[]>(initialGroups);
+  const [groups, setGroups] = useState<Group[]>(initialGroups);
 
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] =
     useState<"الكل" | GroupStatus>("الكل");
 
-  const [subjectFilter, setSubjectFilter] =
-    useState("الكل");
+  const [subjectFilter, setSubjectFilter] = useState("الكل");
 
-  const [currentPage, setCurrentPage] =
-    useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [modalOpen, setModalOpen] =
-    useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const [detailsOpen, setDetailsOpen] =
-    useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const [editingGroup, setEditingGroup] =
-    useState<Group | null>(null);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
 
-  const [selectedGroup, setSelectedGroup] =
-    useState<Group | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
-  const [openMenuId, setOpenMenuId] =
-    useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
-  const [deleteGroup, setDeleteGroup] =
-    useState<Group | null>(null);
+  const [deleteGroup, setDeleteGroup] = useState<Group | null>(null);
+
+  /*
+   * Used as a remount key for GroupModal.
+   * This allows the modal form to initialize directly from its props
+   * without synchronously calling setState inside an effect.
+   */
+  const [modalInstance, setModalInstance] = useState(0);
 
   const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -190,60 +181,32 @@ export default function GroupsPage() {
     return groups.filter((group) => {
       const matchesSearch =
         !query ||
-        group.name
-          .toLowerCase()
-          .includes(query) ||
-        group.subject
-          .toLowerCase()
-          .includes(query) ||
-        group.teacher
-          .toLowerCase()
-          .includes(query) ||
-        group.grade
-          .toLowerCase()
-          .includes(query);
+        group.name.toLowerCase().includes(query) ||
+        group.subject.toLowerCase().includes(query) ||
+        group.teacher.toLowerCase().includes(query) ||
+        group.grade.toLowerCase().includes(query);
 
       const matchesStatus =
-        statusFilter === "الكل" ||
-        group.status === statusFilter;
+        statusFilter === "الكل" || group.status === statusFilter;
 
       const matchesSubject =
-        subjectFilter === "الكل" ||
-        group.subject === subjectFilter;
+        subjectFilter === "الكل" || group.subject === subjectFilter;
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesSubject
-      );
+      return matchesSearch && matchesStatus && matchesSubject;
     });
-  }, [
-    groups,
-    search,
-    statusFilter,
-    subjectFilter,
-  ]);
+  }, [groups, search, statusFilter, subjectFilter]);
 
   const totalPages = Math.max(
     1,
-    Math.ceil(
-      filteredGroups.length / PAGE_SIZE,
-    ),
+    Math.ceil(filteredGroups.length / PAGE_SIZE),
   );
 
-  const safeCurrentPage = Math.min(
-    currentPage,
-    totalPages,
-  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedGroups = useMemo(() => {
-    const start =
-      (safeCurrentPage - 1) * PAGE_SIZE;
+    const start = (safeCurrentPage - 1) * PAGE_SIZE;
 
-    return filteredGroups.slice(
-      start,
-      start + PAGE_SIZE,
-    );
+    return filteredGroups.slice(start, start + PAGE_SIZE);
   }, [filteredGroups, safeCurrentPage]);
 
   const activeGroups = groups.filter(
@@ -251,14 +214,12 @@ export default function GroupsPage() {
   ).length;
 
   const totalStudents = groups.reduce(
-    (total, group) =>
-      total + group.students,
+    (total, group) => total + group.students,
     0,
   );
 
   const totalCapacity = groups.reduce(
-    (total, group) =>
-      total + group.maxStudents,
+    (total, group) => total + group.maxStudents,
     0,
   );
 
@@ -268,9 +229,7 @@ export default function GroupsPage() {
   );
 
   useEffect(() => {
-    const handleKeyDown = (
-      event: KeyboardEvent,
-    ) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
         return;
       }
@@ -297,69 +256,47 @@ export default function GroupsPage() {
       }
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    deleteGroup,
-    modalOpen,
-    detailsOpen,
-    openMenuId,
-  ]);
+  }, [deleteGroup, modalOpen, detailsOpen, openMenuId]);
 
   useEffect(() => {
     const hasOverlay =
-      modalOpen ||
-      detailsOpen ||
-      Boolean(deleteGroup);
+      modalOpen || detailsOpen || Boolean(deleteGroup);
 
-    document.body.style.overflow =
-      hasOverlay ? "hidden" : "";
+    document.body.style.overflow = hasOverlay ? "hidden" : "";
 
     return () => {
       document.body.style.overflow = "";
     };
-  }, [
-    modalOpen,
-    detailsOpen,
-    deleteGroup,
-  ]);
+  }, [modalOpen, detailsOpen, deleteGroup]);
 
   const openAddModal = () => {
     setOpenMenuId(null);
     setEditingGroup(null);
+    setModalInstance((value) => value + 1);
     setModalOpen(true);
   };
 
-  const openEditModal = (
-    group: Group,
-  ) => {
+  const openEditModal = (group: Group) => {
     setOpenMenuId(null);
     setDetailsOpen(false);
     setSelectedGroup(null);
     setEditingGroup(group);
+    setModalInstance((value) => value + 1);
     setModalOpen(true);
   };
 
-  const openDetails = (
-    group: Group,
-  ) => {
+  const openDetails = (group: Group) => {
     setOpenMenuId(null);
     setSelectedGroup(group);
     setDetailsOpen(true);
   };
 
-  const toggleGroupStatus = (
-    group: Group,
-  ) => {
+  const toggleGroupStatus = (group: Group) => {
     setGroups((current) =>
       current.map((item) =>
         item.id === group.id
@@ -377,9 +314,7 @@ export default function GroupsPage() {
     setOpenMenuId(null);
   };
 
-  const requestDelete = (
-    group: Group,
-  ) => {
+  const requestDelete = (group: Group) => {
     setOpenMenuId(null);
     setDeleteGroup(group);
   };
@@ -390,16 +325,10 @@ export default function GroupsPage() {
     }
 
     setGroups((current) =>
-      current.filter(
-        (group) =>
-          group.id !== deleteGroup.id,
-      ),
+      current.filter((group) => group.id !== deleteGroup.id),
     );
 
-    if (
-      selectedGroup?.id ===
-      deleteGroup.id
-    ) {
+    if (selectedGroup?.id === deleteGroup.id) {
       setSelectedGroup(null);
       setDetailsOpen(false);
     }
@@ -408,10 +337,7 @@ export default function GroupsPage() {
   };
 
   const handleSaveGroup = (
-    groupData: Omit<
-      Group,
-      "id" | "students"
-    >,
+    groupData: Omit<Group, "id" | "students">,
   ) => {
     if (editingGroup) {
       setGroups((current) =>
@@ -431,10 +357,7 @@ export default function GroupsPage() {
         students: 0,
       };
 
-      setGroups((current) => [
-        newGroup,
-        ...current,
-      ]);
+      setGroups((current) => [newGroup, ...current]);
     }
 
     setModalOpen(false);
@@ -444,9 +367,7 @@ export default function GroupsPage() {
   const resultStart =
     filteredGroups.length === 0
       ? 0
-      : (safeCurrentPage - 1) *
-          PAGE_SIZE +
-        1;
+      : (safeCurrentPage - 1) * PAGE_SIZE + 1;
 
   const resultEnd = Math.min(
     safeCurrentPage * PAGE_SIZE,
@@ -492,34 +413,26 @@ export default function GroupsPage() {
           <StatCard
             icon={<FiBookOpen size={19} />}
             label="إجمالي المجموعات"
-            value={groups.length.toLocaleString(
-              "ar-EG",
-            )}
+            value={groups.length.toLocaleString("ar-EG")}
           />
 
           <StatCard
             icon={<FiCheckCircle size={19} />}
             label="المجموعات النشطة"
-            value={activeGroups.toLocaleString(
-              "ar-EG",
-            )}
+            value={activeGroups.toLocaleString("ar-EG")}
             valueClass="text-emerald-600"
           />
 
           <StatCard
             icon={<FiUsers size={19} />}
             label="إجمالي الطلاب"
-            value={totalStudents.toLocaleString(
-              "ar-EG",
-            )}
+            value={totalStudents.toLocaleString("ar-EG")}
           />
 
           <StatCard
             icon={<FiClock size={19} />}
             label="الأماكن المتاحة"
-            value={availableSeats.toLocaleString(
-              "ar-EG",
-            )}
+            value={availableSeats.toLocaleString("ar-EG")}
             valueClass="text-amber-600"
           />
         </section>
@@ -556,17 +469,12 @@ export default function GroupsPage() {
                     )
                   ) {
                     setStatusFilter(
-                      value as
-                        | "الكل"
-                        | GroupStatus,
+                      value as "الكل" | GroupStatus,
                     );
                     setCurrentPage(1);
                   }
                 }}
-                options={[
-                  "الكل",
-                  ...GROUP_STATUSES,
-                ]}
+                options={["الكل", ...GROUP_STATUSES]}
                 placeholder="الحالة"
               />
 
@@ -576,10 +484,7 @@ export default function GroupsPage() {
                   setSubjectFilter(value);
                   setCurrentPage(1);
                 }}
-                options={[
-                  "الكل",
-                  ...subjects,
-                ]}
+                options={["الكل", ...subjects]}
                 placeholder="المادة"
               />
             </div>
@@ -601,12 +506,8 @@ export default function GroupsPage() {
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  setStatusFilter(
-                    "الكل",
-                  );
-                  setSubjectFilter(
-                    "الكل",
-                  );
+                  setStatusFilter("الكل");
+                  setSubjectFilter("الكل");
                   setCurrentPage(1);
                 }}
                 className="text-xs font-semibold text-teal-600 transition hover:text-teal-700"
@@ -620,24 +521,13 @@ export default function GroupsPage() {
             <table className="w-full min-w-[1050px] text-right">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70">
-                  <TableHeader>
-                    المجموعة
-                  </TableHeader>
-                  <TableHeader>
-                    المادة
-                  </TableHeader>
-                  <TableHeader>
-                    المدرس
-                  </TableHeader>
-                  <TableHeader>
-                    الموعد
-                  </TableHeader>
-                  <TableHeader>
-                    الطلاب
-                  </TableHeader>
-                  <TableHeader>
-                    الحالة
-                  </TableHeader>
+                  <TableHeader>المجموعة</TableHeader>
+                  <TableHeader>المادة</TableHeader>
+                  <TableHeader>المدرس</TableHeader>
+                  <TableHeader>الموعد</TableHeader>
+                  <TableHeader>الطلاب</TableHeader>
+                  <TableHeader>الحالة</TableHeader>
+
                   <th className="w-32 px-5 py-3 text-xs font-semibold text-slate-500">
                     إجراءات
                   </th>
@@ -645,268 +535,206 @@ export default function GroupsPage() {
               </thead>
 
               <tbody>
-                {paginatedGroups.map(
-                  (group) => {
-                    const occupancy =
-                      group.maxStudents ===
-                      0
-                        ? 0
-                        : Math.round(
-                            (group.students /
-                              group.maxStudents) *
-                              100,
-                          );
+                {paginatedGroups.map((group) => {
+                  const occupancy =
+                    group.maxStudents === 0
+                      ? 0
+                      : Math.round(
+                          (group.students /
+                            group.maxStudents) *
+                            100,
+                        );
 
-                    const isMenuOpen =
-                      openMenuId ===
-                      group.id;
+                  const isMenuOpen =
+                    openMenuId === group.id;
 
-                    return (
-                      <tr
-                        key={group.id}
-                        className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-                              <FiBookOpen
-                                size={16}
-                              />
-                            </div>
-
-                            <div>
-                              <p className="text-sm font-semibold text-slate-800">
-                                {group.name}
-                              </p>
-
-                              <p className="mt-0.5 text-xs text-slate-400">
-                                {group.grade}
-                              </p>
-                            </div>
+                  return (
+                    <tr
+                      key={group.id}
+                      className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/70"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+                            <FiBookOpen size={16} />
                           </div>
-                        </td>
 
-                        <td className="px-5 py-4 text-sm text-slate-600">
-                          {group.subject}
-                        </td>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {group.name}
+                            </p>
 
-                        <td className="px-5 py-4 text-sm text-slate-600">
-                          {group.teacher}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <FiCalendar
-                              size={14}
-                              className="text-slate-400"
-                            />
-
-                            <div>
-                              <p className="text-xs font-medium text-slate-600">
-                                {group.time}
-                              </p>
-
-                              <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">
-                                {group.schedule}
-                              </p>
-                            </div>
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              {group.grade}
+                            </p>
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        <td className="px-5 py-4">
-                          <div className="w-28">
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-xs font-semibold text-slate-700">
-                                {
-                                  group.students
-                                }
-                                /
-                                {
-                                  group.maxStudents
-                                }
-                              </span>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {group.subject}
+                      </td>
 
-                              <span className="text-[10px] text-slate-400">
-                                {occupancy}%
-                              </span>
-                            </div>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {group.teacher}
+                      </td>
 
-                            <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                              <div
-                                className={`h-full rounded-full ${
-                                  occupancy >=
-                                  90
-                                    ? "bg-amber-400"
-                                    : "bg-teal-500"
-                                }`}
-                                style={{
-                                  width: `${Math.min(
-                                    occupancy,
-                                    100,
-                                  )}%`,
-                                }}
-                              />
-                            </div>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <FiCalendar
+                            size={14}
+                            className="text-slate-400"
+                          />
+
+                          <div>
+                            <p className="text-xs font-medium text-slate-600">
+                              {group.time}
+                            </p>
+
+                            <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">
+                              {group.schedule}
+                            </p>
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              group.status ===
-                              "نشطة"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {group.status}
-                          </span>
-                        </td>
+                      <td className="px-5 py-4">
+                        <div className="w-28">
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700">
+                              {group.students}/{group.maxStudents}
+                            </span>
 
-                        <td className="px-5 py-4">
-                          <div className="relative flex items-center gap-1">
-                            <ActionButton
-                              label="عرض المجموعة"
-                              onClick={() =>
-                                openDetails(
-                                  group,
-                                )
-                              }
-                            >
-                              <FiEye
-                                size={16}
-                              />
-                            </ActionButton>
+                            <span className="text-[10px] text-slate-400">
+                              {occupancy}%
+                            </span>
+                          </div>
 
-                            <ActionButton
-                              label="تعديل المجموعة"
-                              onClick={() =>
-                                openEditModal(
-                                  group,
-                                )
-                              }
-                            >
-                              <FiEdit2
-                                size={15}
-                              />
-                            </ActionButton>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenMenuId(
-                                  isMenuOpen
-                                    ? null
-                                    : group.id,
-                                )
-                              }
-                              className={`flex h-8 w-8 items-center justify-center rounded-md transition focus:outline-none focus:ring-2 focus:ring-slate-300 ${
-                                isMenuOpen
-                                  ? "bg-slate-100 text-slate-700"
-                                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${
+                                occupancy >= 90
+                                  ? "bg-amber-400"
+                                  : "bg-teal-500"
                               }`}
-                              aria-label="المزيد"
-                              aria-expanded={
-                                isMenuOpen
-                              }
-                            >
-                              <FiMoreHorizontal
-                                size={16}
-                              />
-                            </button>
-
-                            {isMenuOpen && (
-                              <div className="absolute left-0 top-10 z-30 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                                <MenuButton
-                                  icon={
-                                    <FiEye
-                                      size={
-                                        15
-                                      }
-                                    />
-                                  }
-                                  onClick={() =>
-                                    openDetails(
-                                      group,
-                                    )
-                                  }
-                                >
-                                  عرض التفاصيل
-                                </MenuButton>
-
-                                <MenuButton
-                                  icon={
-                                    <FiEdit2
-                                      size={
-                                        15
-                                      }
-                                    />
-                                  }
-                                  onClick={() =>
-                                    openEditModal(
-                                      group,
-                                    )
-                                  }
-                                >
-                                  تعديل المجموعة
-                                </MenuButton>
-
-                                <MenuButton
-                                  icon={
-                                    group.status ===
-                                    "نشطة" ? (
-                                      <FiPauseCircle
-                                        size={
-                                          15
-                                        }
-                                      />
-                                    ) : (
-                                      <FiCheckCircle
-                                        size={
-                                          15
-                                        }
-                                      />
-                                    )
-                                  }
-                                  onClick={() =>
-                                    toggleGroupStatus(
-                                      group,
-                                    )
-                                  }
-                                >
-                                  {group.status ===
-                                  "نشطة"
-                                    ? "إيقاف المجموعة"
-                                    : "تفعيل المجموعة"}
-                                </MenuButton>
-
-                                <div className="my-1 border-t border-slate-100" />
-
-                                <MenuButton
-                                  danger
-                                  icon={
-                                    <FiTrash2
-                                      size={
-                                        15
-                                      }
-                                    />
-                                  }
-                                  onClick={() =>
-                                    requestDelete(
-                                      group,
-                                    )
-                                  }
-                                >
-                                  حذف المجموعة
-                                </MenuButton>
-                              </div>
-                            )}
+                              style={{
+                                width: `${Math.min(
+                                  occupancy,
+                                  100,
+                                )}%`,
+                              }}
+                            />
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  },
-                )}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            group.status === "نشطة"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {group.status}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="relative flex items-center gap-1">
+                          <ActionButton
+                            label="عرض المجموعة"
+                            onClick={() =>
+                              openDetails(group)
+                            }
+                          >
+                            <FiEye size={16} />
+                          </ActionButton>
+
+                          <ActionButton
+                            label="تعديل المجموعة"
+                            onClick={() =>
+                              openEditModal(group)
+                            }
+                          >
+                            <FiEdit2 size={15} />
+                          </ActionButton>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenMenuId(
+                                isMenuOpen
+                                  ? null
+                                  : group.id,
+                              )
+                            }
+                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+                              isMenuOpen
+                                ? "bg-slate-100 text-slate-700"
+                                : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            }`}
+                            aria-label="المزيد"
+                            aria-expanded={isMenuOpen}
+                          >
+                            <FiMoreHorizontal size={16} />
+                          </button>
+
+                          {isMenuOpen && (
+                            <div className="absolute left-0 top-10 z-30 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                              <MenuButton
+                                icon={<FiEye size={15} />}
+                                onClick={() =>
+                                  openDetails(group)
+                                }
+                              >
+                                عرض التفاصيل
+                              </MenuButton>
+
+                              <MenuButton
+                                icon={<FiEdit2 size={15} />}
+                                onClick={() =>
+                                  openEditModal(group)
+                                }
+                              >
+                                تعديل المجموعة
+                              </MenuButton>
+
+                              <MenuButton
+                                icon={
+                                  group.status === "نشطة" ? (
+                                    <FiPauseCircle size={15} />
+                                  ) : (
+                                    <FiCheckCircle size={15} />
+                                  )
+                                }
+                                onClick={() =>
+                                  toggleGroupStatus(group)
+                                }
+                              >
+                                {group.status === "نشطة"
+                                  ? "إيقاف المجموعة"
+                                  : "تفعيل المجموعة"}
+                              </MenuButton>
+
+                              <div className="my-1 border-t border-slate-100" />
+
+                              <MenuButton
+                                danger
+                                icon={<FiTrash2 size={15} />}
+                                onClick={() =>
+                                  requestDelete(group)
+                                }
+                              >
+                                حذف المجموعة
+                              </MenuButton>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -928,12 +756,9 @@ export default function GroupsPage() {
                   type="button"
                   onClick={() => {
                     setSearch("");
-                    setStatusFilter(
-                      "الكل",
-                    );
-                    setSubjectFilter(
-                      "الكل",
-                    );
+                    setStatusFilter("الكل");
+                    setSubjectFilter("الكل");
+                    setCurrentPage(1);
                   }}
                   className="mt-4 text-xs font-semibold text-teal-600 hover:text-teal-700"
                 >
@@ -957,9 +782,7 @@ export default function GroupsPage() {
                   </span>{" "}
                   من{" "}
                   <span className="font-semibold text-slate-600">
-                    {
-                      filteredGroups.length
-                    }
+                    {filteredGroups.length}
                   </span>
                 </>
               ) : (
@@ -970,44 +793,30 @@ export default function GroupsPage() {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                disabled={
-                  safeCurrentPage === 1
-                }
+                disabled={safeCurrentPage === 1}
                 onClick={() =>
-                  setCurrentPage(
-                    (page) =>
-                      Math.max(
-                        page - 1,
-                        1,
-                      ),
+                  setCurrentPage((page) =>
+                    Math.max(page - 1, 1),
                   )
                 }
                 className="flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <FiChevronRight
-                  size={14}
-                />
+                <FiChevronRight size={14} />
                 السابق
               </button>
 
               {Array.from(
-                {
-                  length: totalPages,
-                },
-                (_, index) =>
-                  index + 1,
+                { length: totalPages },
+                (_, index) => index + 1,
               ).map((page) => (
                 <button
                   key={page}
                   type="button"
                   onClick={() =>
-                    setCurrentPage(
-                      page,
-                    )
+                    setCurrentPage(page)
                   }
                   className={`flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-xs font-semibold transition ${
-                    currentPage ===
-                    page
+                    currentPage === page
                       ? "bg-teal-600 text-white"
                       : "border border-slate-200 text-slate-500 hover:bg-slate-50"
                   }`}
@@ -1018,25 +827,16 @@ export default function GroupsPage() {
 
               <button
                 type="button"
-                disabled={
-                  safeCurrentPage ===
-                  totalPages
-                }
+                disabled={safeCurrentPage === totalPages}
                 onClick={() =>
-                  setCurrentPage(
-                    (page) =>
-                      Math.min(
-                        page + 1,
-                        totalPages,
-                      ),
+                  setCurrentPage((page) =>
+                    Math.min(page + 1, totalPages),
                   )
                 }
                 className="flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 التالي
-                <FiChevronLeft
-                  size={14}
-                />
+                <FiChevronLeft size={14} />
               </button>
             </div>
           </div>
@@ -1044,6 +844,7 @@ export default function GroupsPage() {
       </div>
 
       <GroupModal
+        key={`${editingGroup?.id ?? "new"}-${modalInstance}`}
         open={modalOpen}
         group={editingGroup}
         onClose={() => {
@@ -1074,7 +875,7 @@ export default function GroupsPage() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Shared Components                                                           */
+/* Shared Components                                                          */
 /* -------------------------------------------------------------------------- */
 
 function TableHeader({
@@ -1225,42 +1026,57 @@ function GroupModal({
     data: Omit<Group, "id" | "students">,
   ) => void;
 }) {
-  const isEdit = Boolean(group);
+  /*
+   * The component is intentionally remounted by the parent whenever
+   * the modal is opened for a new/edit operation.
+   *
+   * This lets us initialize the form from props directly and avoids
+   * calling setState synchronously inside useEffect.
+   */
+  const [name, setName] = useState(
+    () => group?.name ?? "",
+  );
 
-  const [name, setName] = useState("");
-  const [subject, setSubject] = useState("");
-  const [grade, setGrade] = useState("");
-  const [teacher, setTeacher] = useState("");
-  const [room, setRoom] = useState("");
-  const [maxStudents, setMaxStudents] =
-    useState("25");
-  const [schedule, setSchedule] =
-    useState("");
-  const [time, setTime] = useState("");
+  const [subject, setSubject] = useState(
+    () => group?.subject ?? "",
+  );
+
+  const [grade, setGrade] = useState(
+    () => group?.grade ?? "",
+  );
+
+  const [teacher, setTeacher] = useState(
+    () => group?.teacher ?? "",
+  );
+
+  const [room, setRoom] = useState(
+    () => group?.room ?? "",
+  );
+
+  const [maxStudents, setMaxStudents] = useState(
+    () => String(group?.maxStudents ?? 25),
+  );
+
+  const [schedule, setSchedule] = useState(
+    () => group?.schedule ?? "",
+  );
+
+  const [time, setTime] = useState(
+    () => group?.time ?? "",
+  );
+
   const [status, setStatus] =
-    useState<GroupStatus>("نشطة");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-
-    setName(group?.name ?? "");
-    setSubject(group?.subject ?? "");
-    setGrade(group?.grade ?? "");
-    setTeacher(group?.teacher ?? "");
-    setRoom(group?.room ?? "");
-    setMaxStudents(
-      String(group?.maxStudents ?? 25),
+    useState<GroupStatus>(
+      () => group?.status ?? "نشطة",
     );
-    setSchedule(group?.schedule ?? "");
-    setTime(group?.time ?? "");
-    setStatus(group?.status ?? "نشطة");
-    setError("");
-  }, [open, group]);
+
+  const [error, setError] = useState("");
 
   if (!open) {
     return null;
   }
+
+  const isEdit = Boolean(group);
 
   const submit = () => {
     if (
@@ -1378,9 +1194,7 @@ function GroupModal({
               <input
                 value={name}
                 onChange={(event) => {
-                  setName(
-                    event.target.value,
-                  );
+                  setName(event.target.value);
                   if (error) setError("");
                 }}
                 placeholder="مثال: مجموعة أ"
@@ -1395,9 +1209,7 @@ function GroupModal({
               <select
                 value={subject}
                 onChange={(event) => {
-                  setSubject(
-                    event.target.value,
-                  );
+                  setSubject(event.target.value);
                   if (error) setError("");
                 }}
                 className="field"
@@ -1424,9 +1236,7 @@ function GroupModal({
               <select
                 value={grade}
                 onChange={(event) => {
-                  setGrade(
-                    event.target.value,
-                  );
+                  setGrade(event.target.value);
                   if (error) setError("");
                 }}
                 className="field"
@@ -1453,9 +1263,7 @@ function GroupModal({
               <select
                 value={teacher}
                 onChange={(event) => {
-                  setTeacher(
-                    event.target.value,
-                  );
+                  setTeacher(event.target.value);
                   if (error) setError("");
                 }}
                 className="field"
@@ -1482,9 +1290,7 @@ function GroupModal({
               <select
                 value={room}
                 onChange={(event) => {
-                  setRoom(
-                    event.target.value,
-                  );
+                  setRoom(event.target.value);
                   if (error) setError("");
                 }}
                 className="field"
@@ -1530,9 +1336,7 @@ function GroupModal({
               <select
                 value={schedule}
                 onChange={(event) => {
-                  setSchedule(
-                    event.target.value,
-                  );
+                  setSchedule(event.target.value);
                   if (error) setError("");
                 }}
                 className="field"
@@ -1560,9 +1364,7 @@ function GroupModal({
                 type="text"
                 value={time}
                 onChange={(event) => {
-                  setTime(
-                    event.target.value,
-                  );
+                  setTime(event.target.value);
                   if (error) setError("");
                 }}
                 placeholder="مثال: 04:00 م"
@@ -1592,16 +1394,14 @@ function GroupModal({
                 }}
                 className="field"
               >
-                {GROUP_STATUSES.map(
-                  (item) => (
-                    <option
-                      key={item}
-                      value={item}
-                    >
-                      {item}
-                    </option>
-                  ),
-                )}
+                {GROUP_STATUSES.map((item) => (
+                  <option
+                    key={item}
+                    value={item}
+                  >
+                    {item}
+                  </option>
+                ))}
               </select>
             </FormField>
           </div>
@@ -1656,8 +1456,7 @@ function GroupDetailsModal({
         );
 
   const availableSeats = Math.max(
-    group.maxStudents -
-      group.students,
+    group.maxStudents - group.students,
     0,
   );
 
@@ -1696,8 +1495,7 @@ function GroupDetailsModal({
 
                 <span
                   className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                    group.status ===
-                    "نشطة"
+                    group.status === "نشطة"
                       ? "bg-emerald-50 text-emerald-700"
                       : "bg-slate-100 text-slate-600"
                   }`}
@@ -1707,8 +1505,7 @@ function GroupDetailsModal({
               </div>
 
               <p className="mt-1 text-xs text-slate-400">
-                {group.subject} ·{" "}
-                {group.grade}
+                {group.subject} · {group.grade}
               </p>
             </div>
           </div>
@@ -1726,49 +1523,37 @@ function GroupDetailsModal({
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           <div className="grid gap-3 sm:grid-cols-2">
             <InfoBox
-              icon={
-                <FiBookOpen size={16} />
-              }
+              icon={<FiBookOpen size={16} />}
               label="المادة"
               value={group.subject}
             />
 
             <InfoBox
-              icon={
-                <FiUsers size={16} />
-              }
+              icon={<FiUsers size={16} />}
               label="المرحلة"
               value={group.grade}
             />
 
             <InfoBox
-              icon={
-                <FiUsers size={16} />
-              }
+              icon={<FiUsers size={16} />}
               label="المدرس"
               value={group.teacher}
             />
 
             <InfoBox
-              icon={
-                <FiBookOpen size={16} />
-              }
+              icon={<FiBookOpen size={16} />}
               label="القاعة"
               value={group.room}
             />
 
             <InfoBox
-              icon={
-                <FiCalendar size={16} />
-              }
+              icon={<FiCalendar size={16} />}
               label="الأيام"
               value={group.schedule}
             />
 
             <InfoBox
-              icon={
-                <FiClock size={16} />
-              }
+              icon={<FiClock size={16} />}
               label="وقت الحصة"
               value={group.time}
             />
@@ -1793,8 +1578,7 @@ function GroupDetailsModal({
                   <p className="mt-1 text-xl font-bold text-slate-900">
                     {group.students}{" "}
                     <span className="text-sm font-medium text-slate-400">
-                      /{" "}
-                      {group.maxStudents}
+                      / {group.maxStudents}
                     </span>
                   </p>
                 </div>
@@ -1827,9 +1611,7 @@ function GroupDetailsModal({
               </div>
 
               <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-                <span>
-                  الأماكن المتاحة
-                </span>
+                <span>الأماكن المتاحة</span>
 
                 <span className="font-semibold text-slate-600">
                   {availableSeats}

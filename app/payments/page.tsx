@@ -5,7 +5,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
+
 import {
   FiCalendar,
   FiChevronDown,
@@ -103,10 +105,7 @@ function getInitials(name: string) {
     return parts[0].slice(0, 1);
   }
 
-  return `${parts[0].slice(
-    0,
-    1,
-  )}${parts[1].slice(0, 1)}`;
+  return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`;
 }
 
 function getStudentFinance(
@@ -121,8 +120,7 @@ function getStudentFinance(
         payment.id !== excludedPaymentId,
     )
     .reduce(
-      (sum, payment) =>
-        sum + payment.amount,
+      (sum, payment) => sum + payment.amount,
       0,
     );
 
@@ -218,7 +216,7 @@ export default function PaymentsPage() {
       }
     }
 
-    loadData();
+    void loadData();
 
     return () => {
       mounted = false;
@@ -238,9 +236,7 @@ export default function PaymentsPage() {
     return payments
       .map((payment) => {
         const student =
-          studentsMap.get(
-            payment.studentId,
-          );
+          studentsMap.get(payment.studentId);
 
         if (!student) {
           return null;
@@ -292,9 +288,9 @@ export default function PaymentsPage() {
           student.guardianName
             .toLowerCase()
             .includes(query) ||
-          student.guardianPhone.includes(
-            query,
-          ) ||
+          student.guardianPhone
+            .toLowerCase()
+            .includes(query) ||
           student.studentId
             .toLowerCase()
             .includes(query) ||
@@ -304,13 +300,11 @@ export default function PaymentsPage() {
 
         const matchesStatus =
           statusFilter === "all" ||
-          finance.status ===
-            statusFilter;
+          finance.status === statusFilter;
 
         const matchesMethod =
           methodFilter === "all" ||
-          payment.method ===
-            methodFilter;
+          payment.method === methodFilter;
 
         return (
           matchesSearch &&
@@ -394,8 +388,7 @@ export default function PaymentsPage() {
     if (editingPayment) {
       setPayments((current) =>
         current.map((payment) =>
-          payment.id ===
-          editingPayment.id
+          payment.id === editingPayment.id
             ? {
                 ...payment,
                 ...data,
@@ -425,14 +418,11 @@ export default function PaymentsPage() {
     payment: Payment,
   ) => {
     const student =
-      studentsMap.get(
-        payment.studentId,
-      );
+      studentsMap.get(payment.studentId);
 
-    const confirmed =
-      window.confirm(
-        `هل أنت متأكد من حذف عملية الدفع الخاصة بالطالب "${student?.name ?? "الطالب"}"؟`,
-      );
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف عملية الدفع الخاصة بالطالب "${student?.name ?? "الطالب"}"؟`,
+    );
 
     if (!confirmed) {
       return;
@@ -446,8 +436,7 @@ export default function PaymentsPage() {
     );
 
     if (
-      selectedPayment?.id ===
-      payment.id
+      selectedPayment?.id === payment.id
     ) {
       setDetailsModalOpen(false);
       setSelectedPayment(null);
@@ -467,7 +456,6 @@ export default function PaymentsPage() {
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
               <span>الرئيسية</span>
               <span>/</span>
-
               <span className="text-teal-600">
                 المدفوعات
               </span>
@@ -496,33 +484,23 @@ export default function PaymentsPage() {
 
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <PaymentStat
-            icon={
-              <FiDollarSign size={19} />
-            }
+            icon={<FiDollarSign size={19} />}
             label="إجمالي المستحق"
-            value={formatMoney(
-              totalRequired,
-            )}
+            value={formatMoney(totalRequired)}
             valueClass="text-slate-900"
           />
 
           <PaymentStat
-            icon={
-              <FiCreditCard size={19} />
-            }
+            icon={<FiCreditCard size={19} />}
             label="إجمالي المحصل"
             value={formatMoney(totalPaid)}
             valueClass="text-emerald-600"
           />
 
           <PaymentStat
-            icon={
-              <FiDollarSign size={19} />
-            }
+            icon={<FiDollarSign size={19} />}
             label="إجمالي المتبقي"
-            value={formatMoney(
-              totalRemaining,
-            )}
+            value={formatMoney(totalRemaining)}
             valueClass="text-red-600"
           />
 
@@ -576,9 +554,7 @@ export default function PaymentsPage() {
                   type="search"
                   value={search}
                   onChange={(event) =>
-                    setSearch(
-                      event.target.value,
-                    )
+                    setSearch(event.target.value)
                   }
                   placeholder="ابحث باسم الطالب أو رقم الطالب أو رقم العملية..."
                   className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pr-9 pl-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
@@ -588,16 +564,12 @@ export default function PaymentsPage() {
               <PaymentFilter
                 value={statusFilter}
                 onChange={setStatusFilter}
-                options={
-                  STATUS_OPTIONS
-                }
+                options={STATUS_OPTIONS}
                 label="الحالة"
                 getLabel={(value) =>
                   value === "all"
                     ? "كل الحالات"
-                    : STATUS_LABELS[
-                        value
-                      ]
+                    : STATUS_LABELS[value]
                 }
               />
 
@@ -612,9 +584,7 @@ export default function PaymentsPage() {
                 getLabel={(value) =>
                   value === "all"
                     ? "كل طرق الدفع"
-                    : METHOD_LABELS[
-                        value
-                      ]
+                    : METHOD_LABELS[value]
                 }
               />
             </div>
@@ -626,9 +596,7 @@ export default function PaymentsPage() {
             <p className="text-xs text-slate-400">
               عرض{" "}
               <span className="font-semibold text-slate-600">
-                {
-                  filteredPayments.length
-                }
+                {filteredPayments.length}
               </span>{" "}
               عملية دفع
             </p>
@@ -703,9 +671,7 @@ export default function PaymentsPage() {
                             </p>
 
                             <p className="mt-0.5 text-[11px] text-slate-400">
-                              {
-                                student.studentId
-                              }
+                              {student.studentId}
                             </p>
                           </div>
                         </div>
@@ -727,15 +693,12 @@ export default function PaymentsPage() {
 
                       <td className="px-5 py-4">
                         <span className="text-sm font-semibold text-slate-700">
-                          {formatMoney(
-                            finance.paid,
-                          )}
+                          {formatMoney(finance.paid)}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
-                        {finance.remaining >
-                        0 ? (
+                        {finance.remaining > 0 ? (
                           <span className="text-sm font-bold text-red-600">
                             {formatMoney(
                               finance.remaining,
@@ -760,9 +723,7 @@ export default function PaymentsPage() {
 
                       <td className="px-5 py-4">
                         <PaymentStatusBadge
-                          status={
-                            finance.status
-                          }
+                          status={finance.status}
                         />
                       </td>
 
@@ -784,9 +745,7 @@ export default function PaymentsPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              openDetails(
-                                payment,
-                              )
+                              openDetails(payment)
                             }
                             className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-teal-50 hover:text-teal-600"
                             title="عرض التفاصيل"
@@ -798,9 +757,7 @@ export default function PaymentsPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              openEditModal(
-                                payment,
-                              )
+                              openEditModal(payment)
                             }
                             className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                             title="تعديل"
@@ -837,8 +794,7 @@ export default function PaymentsPage() {
                 </p>
               </div>
             ) : (
-              filteredPayments.length ===
-                0 && (
+              filteredPayments.length === 0 && (
                 <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                     <FiCreditCard size={20} />
@@ -950,7 +906,7 @@ function PaymentStat({
   value,
   valueClass,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string | number;
   valueClass: string;
@@ -1049,9 +1005,7 @@ function PaymentSummary({
 /* Filter                                                                     */
 /* -------------------------------------------------------------------------- */
 
-function PaymentFilter<
-  T extends string,
->({
+function PaymentFilter<T extends string>({
   value,
   onChange,
   options,
@@ -1069,9 +1023,7 @@ function PaymentFilter<
       <select
         value={value}
         onChange={(event) =>
-          onChange(
-            event.target.value as T,
-          )
+          onChange(event.target.value as T)
         }
         aria-label={label}
         className="h-10 min-w-40 appearance-none rounded-lg border border-slate-200 bg-white px-3 pl-9 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
@@ -1141,21 +1093,14 @@ function PaymentModal({
   payments: Payment[];
   onClose: () => void;
   onSubmit: (
-    data: Omit<
-      Payment,
-      "id" | "createdAt"
-    >,
+    data: Omit<Payment, "id" | "createdAt">,
   ) => void;
 }) {
   const [studentId, setStudentId] =
-    useState(
-      payment?.studentId ?? "",
-    );
+    useState(payment?.studentId ?? "");
 
   const [amount, setAmount] =
-    useState(
-      String(payment?.amount ?? ""),
-    );
+    useState(String(payment?.amount ?? ""));
 
   const [method, setMethod] =
     useState<PaymentMethod>(
@@ -1171,9 +1116,7 @@ function PaymentModal({
     );
 
   const [notes, setNotes] =
-    useState(
-      payment?.notes ?? "",
-    );
+    useState(payment?.notes ?? "");
 
   const [error, setError] =
     useState("");
@@ -1202,10 +1145,7 @@ function PaymentModal({
           .slice(0, 10),
     );
 
-    setNotes(
-      payment?.notes ?? "",
-    );
-
+    setNotes(payment?.notes ?? "");
     setError("");
   }, [open, payment]);
 
@@ -1243,16 +1183,12 @@ function PaymentModal({
 
   const handleSubmit = () => {
     if (!studentId) {
-      setError(
-        "يرجى اختيار الطالب.",
-      );
+      setError("يرجى اختيار الطالب.");
       return;
     }
 
     if (
-      !Number.isFinite(
-        numericAmount,
-      ) ||
+      !Number.isFinite(numericAmount) ||
       numericAmount <= 0
     ) {
       setError(
@@ -1347,9 +1283,7 @@ function PaymentModal({
                       value={student.id}
                     >
                       {student.name} —{" "}
-                      {
-                        student.studentId
-                      }
+                      {student.studentId}
                     </option>
                   ),
                 )}
@@ -1454,9 +1388,7 @@ function PaymentModal({
                   </p>
 
                   <p className="mt-1 text-lg font-bold text-emerald-600">
-                    {formatMoney(
-                      previousPaid,
-                    )}
+                    {formatMoney(previousPaid)}
                   </p>
                 </div>
 
@@ -1588,9 +1520,7 @@ function PaymentDetailsModal({
         <div className="px-5 py-5 sm:px-6">
           <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-teal-50 text-sm font-bold text-teal-700">
-              {getInitials(
-                student.name,
-              )}
+              {getInitials(student.name)}
             </div>
 
             <div>
@@ -1607,9 +1537,7 @@ function PaymentDetailsModal({
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <PaymentInfo
               label="المبلغ المدفوع في العملية"
-              value={formatMoney(
-                payment.amount,
-              )}
+              value={formatMoney(payment.amount)}
               valueClass="text-emerald-600"
             />
 
@@ -1622,9 +1550,7 @@ function PaymentDetailsModal({
 
             <PaymentInfo
               label="إجمالي المدفوع"
-              value={formatMoney(
-                finance.paid,
-              )}
+              value={formatMoney(finance.paid)}
               valueClass="text-emerald-600"
             />
 
@@ -1643,17 +1569,13 @@ function PaymentDetailsModal({
             <PaymentInfo
               label="طريقة الدفع"
               value={
-                METHOD_LABELS[
-                  payment.method
-                ]
+                METHOD_LABELS[payment.method]
               }
             />
 
             <PaymentInfo
               label="تاريخ العملية"
-              value={formatDate(
-                payment.paidAt,
-              )}
+              value={formatDate(payment.paidAt)}
             />
           </div>
 
@@ -1683,9 +1605,7 @@ function PaymentDetailsModal({
 
           <button
             type="button"
-            onClick={() =>
-              onEdit(payment)
-            }
+            onClick={() => onEdit(payment)}
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-semibold text-white transition hover:bg-teal-700"
           >
             <FiEdit2 size={15} />
@@ -1706,7 +1626,7 @@ function PaymentFormField({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block">

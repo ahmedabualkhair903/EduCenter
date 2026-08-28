@@ -54,7 +54,8 @@ export default function StudentDetailsModal({
     ? groupNames[student.groupId] ?? "غير محددة"
     : "غير محددة";
 
-  const statusLabel = statusLabels[student.status];
+  const statusLabel =
+    statusLabels[student.status] ?? "غير محدد";
 
   const customFields = student.customFields ?? [];
 
@@ -71,7 +72,8 @@ export default function StudentDetailsModal({
       : 100;
 
   const handleWhatsApp = () => {
-    const phone = student.guardianPhone.replace(/\D/g, "");
+    const phone = student.guardianPhone
+      .replace(/\D/g, "");
 
     if (!phone) {
       return;
@@ -99,6 +101,7 @@ export default function StudentDetailsModal({
         aria-labelledby="student-details-title"
         className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
       >
+        {/* Header */}
         <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-teal-50 text-sm font-bold text-teal-700">
@@ -143,7 +146,9 @@ export default function StudentDetailsModal({
           </button>
         </div>
 
+        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          {/* Summary */}
           <section className="grid gap-3 sm:grid-cols-3">
             <InfoCard
               icon={<FiCalendar size={16} />}
@@ -164,6 +169,7 @@ export default function StudentDetailsModal({
             />
           </section>
 
+          {/* Student information */}
           <section className="mt-6">
             <SectionTitle
               title="بيانات الطالب"
@@ -173,32 +179,42 @@ export default function StudentDetailsModal({
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailItem
                 label="رقم الهاتف"
-                value={student.phone ?? "غير مسجل"}
+                value={student.phone || "غير مسجل"}
                 icon={<FiPhone size={15} />}
                 direction="ltr"
               />
 
               <DetailItem
                 label="اسم ولي الأمر"
-                value={student.guardianName}
+                value={
+                  student.guardianName ||
+                  "غير مسجل"
+                }
                 icon={<FiUser size={15} />}
               />
 
               <DetailItem
                 label="هاتف ولي الأمر"
-                value={student.guardianPhone || "غير مسجل"}
+                value={
+                  student.guardianPhone ||
+                  "غير مسجل"
+                }
                 icon={<FiPhone size={15} />}
                 direction="ltr"
               />
 
               <DetailItem
                 label="العنوان"
-                value={student.address ?? "غير مسجل"}
+                value={
+                  student.address ||
+                  "غير مسجل"
+                }
                 icon={<FiUser size={15} />}
               />
             </div>
           </section>
 
+          {/* Financial */}
           <section className="mt-6 border-t border-slate-100 pt-6">
             <SectionTitle
               title="الحالة المالية"
@@ -208,7 +224,9 @@ export default function StudentDetailsModal({
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <FinancialItem
                 label="إجمالي المطلوب"
-                value={student.financial.totalRequired}
+                value={
+                  student.financial.totalRequired
+                }
               />
 
               <FinancialItem
@@ -220,7 +238,9 @@ export default function StudentDetailsModal({
               <FinancialItem
                 label="المتبقي"
                 value={student.financial.remaining}
-                warning={student.financial.remaining > 0}
+                warning={
+                  student.financial.remaining > 0
+                }
               />
             </div>
 
@@ -246,6 +266,7 @@ export default function StudentDetailsModal({
             </div>
           </section>
 
+          {/* Custom fields */}
           {customFields.length > 0 && (
             <section className="mt-6 border-t border-slate-100 pt-6">
               <SectionTitle
@@ -258,17 +279,16 @@ export default function StudentDetailsModal({
                   <DetailItem
                     key={field.fieldId}
                     label={field.fieldId}
-                    value={
-                      field.value === null
-                        ? "غير مسجل"
-                        : String(field.value)
-                    }
+                    value={formatCustomFieldValue(
+                      field.value,
+                    )}
                   />
                 ))}
               </div>
             </section>
           )}
 
+          {/* Notes */}
           <section className="mt-6 border-t border-slate-100 pt-6">
             <SectionTitle
               title="الملاحظات"
@@ -288,6 +308,7 @@ export default function StudentDetailsModal({
             </div>
           </section>
 
+          {/* Recent activity */}
           <section className="mt-6 border-t border-slate-100 pt-6">
             <SectionTitle
               title="النشاط الأخير"
@@ -316,6 +337,7 @@ export default function StudentDetailsModal({
           </section>
         </div>
 
+        {/* Footer */}
         <div className="flex shrink-0 flex-col gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <button
             type="button"
@@ -349,6 +371,28 @@ export default function StudentDetailsModal({
       </div>
     </div>
   );
+}
+
+function formatCustomFieldValue(
+  value:
+    | string
+    | number
+    | boolean
+    | null,
+): string {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return "غير مسجل";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "نعم" : "لا";
+  }
+
+  return String(value);
 }
 
 function SectionTitle({
@@ -421,7 +465,9 @@ function DetailItem({
       <p
         dir={direction}
         className={`mt-2 text-sm font-semibold text-slate-700 ${
-          direction === "ltr" ? "text-right" : ""
+          direction === "ltr"
+            ? "text-right"
+            : ""
         }`}
       >
         {value}
