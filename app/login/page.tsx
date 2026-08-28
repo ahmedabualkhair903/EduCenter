@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, useState } from "react";
@@ -268,7 +269,21 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-8 border-t border-slate-100 pt-6 text-center">
+            {/* Register Link */}
+            <div className="mt-6 text-center">
+              <p className="text-sm text-slate-500">
+                ليس لديك حساب؟{" "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/register")}
+                  className="font-semibold text-teal-600 transition hover:text-teal-700"
+                >
+                  إنشاء حساب جديد
+                </button>
+              </p>
+            </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-6 text-center">
               <p className="text-xs leading-5 text-slate-400">
                 هذا الإصدار يعمل محليًا حاليًا، ويمكن ربطه لاحقًا
                 بنظام مصادقة وAPI حقيقي.
@@ -280,3 +295,4 @@ export default function LoginPage() {
     </main>
   );
 }
+
