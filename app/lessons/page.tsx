@@ -22,6 +22,8 @@ import {
   FiX,
 } from "react-icons/fi";
 
+import { lessonService } from "@/services";
+
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -33,7 +35,7 @@ type LessonStatus =
   | "ملغاة";
 
 type Lesson = {
-  id: number;
+  id: string;
   subject: string;
   teacher: string;
   group: string;
@@ -59,6 +61,48 @@ const statusOptions = [
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
+
+const STATUS_MAP: Record<string, LessonStatus> = {
+  upcoming: "قادمة",
+  ongoing: "جارية",
+  completed: "مكتملة",
+  cancelled: "ملغاة",
+};
+
+const STATUS_REVERSE: Record<LessonStatus, "upcoming" | "ongoing" | "completed" | "cancelled"> = {
+  "قادمة": "upcoming",
+  "جارية": "ongoing",
+  "مكتملة": "completed",
+  "ملغاة": "cancelled",
+};
+
+function mapServiceLesson(l: {
+  id: string;
+  subject: string;
+  teacher: string;
+  group: string;
+  date: string;
+  time: string;
+  duration: number;
+  room: string;
+  students: number;
+  status: "upcoming" | "ongoing" | "completed" | "cancelled";
+  notes: string;
+}): Lesson {
+  return {
+    id: l.id,
+    subject: l.subject,
+    teacher: l.teacher,
+    group: l.group,
+    date: l.date,
+    time: l.time,
+    duration: l.duration,
+    room: l.room,
+    students: l.students,
+    status: STATUS_MAP[l.status] ?? "قادمة",
+    notes: l.notes,
+  };
+}
 
 const getDateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -119,123 +163,12 @@ const formatTime = (time: string) => {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Initial Data                                                               */
-/* -------------------------------------------------------------------------- */
-
-const initialLessons: Lesson[] = [
-  {
-    id: 1,
-    subject: "الرياضيات",
-    teacher: "أحمد محمد",
-    group: "ثالثة ثانوي - A",
-    date: "2026-08-24",
-    time: "16:00",
-    duration: 90,
-    room: "قاعة 1",
-    students: 32,
-    status: "مكتملة",
-    notes: "",
-  },
-  {
-    id: 2,
-    subject: "اللغة الإنجليزية",
-    teacher: "محمد خالد",
-    group: "ثانية ثانوي - B",
-    date: "2026-08-24",
-    time: "17:30",
-    duration: 90,
-    room: "قاعة 2",
-    students: 28,
-    status: "جارية",
-    notes: "",
-  },
-  {
-    id: 3,
-    subject: "الفيزياء",
-    teacher: "د. محمود علي",
-    group: "ثالثة ثانوي - A",
-    date: "2026-08-24",
-    time: "19:00",
-    duration: 120,
-    room: "قاعة 1",
-    students: 32,
-    status: "قادمة",
-    notes: "مراجعة الفصل الثالث.",
-  },
-  {
-    id: 4,
-    subject: "الكيمياء",
-    teacher: "د. أحمد حسن",
-    group: "ثالثة ثانوي - B",
-    date: "2026-08-24",
-    time: "20:30",
-    duration: 120,
-    room: "قاعة 3",
-    students: 30,
-    status: "قادمة",
-    notes: "",
-  },
-  {
-    id: 5,
-    subject: "اللغة العربية",
-    teacher: "أستاذ كريم",
-    group: "أولى ثانوي - A",
-    date: "2026-08-25",
-    time: "16:00",
-    duration: 90,
-    room: "قاعة 2",
-    students: 25,
-    status: "قادمة",
-    notes: "",
-  },
-  {
-    id: 6,
-    subject: "الأحياء",
-    teacher: "د. سارة محمود",
-    group: "ثالثة ثانوي - C",
-    date: "2026-08-25",
-    time: "18:00",
-    duration: 120,
-    room: "قاعة 1",
-    students: 27,
-    status: "قادمة",
-    notes: "",
-  },
-  {
-    id: 7,
-    subject: "الرياضيات",
-    teacher: "أحمد محمد",
-    group: "ثانية ثانوي - A",
-    date: "2026-08-22",
-    time: "18:00",
-    duration: 90,
-    room: "قاعة 3",
-    students: 29,
-    status: "مكتملة",
-    notes: "",
-  },
-  {
-    id: 8,
-    subject: "الفيزياء",
-    teacher: "د. محمود علي",
-    group: "ثانية ثانوي - B",
-    date: "2026-08-22",
-    time: "20:00",
-    duration: 90,
-    room: "قاعة 2",
-    students: 28,
-    status: "ملغاة",
-    notes: "تم إلغاء الحصة لظرف طارئ.",
-  },
-];
-
-/* -------------------------------------------------------------------------- */
 /* Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
 export default function LessonsPage() {
   const [lessons, setLessons] =
-    useState<Lesson[]>(initialLessons);
+    useState<Lesson[]>([]);
 
   const [search, setSearch] = useState("");
 
@@ -250,6 +183,18 @@ export default function LessonsPage() {
 
   const [editingLesson, setEditingLesson] =
     useState<Lesson | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadLessons = async () => {
+      const data = await lessonService.list();
+      if (mounted) {
+        setLessons(data.map(mapServiceLesson));
+      }
+    };
+    void loadLessons();
+    return () => { mounted = false; };
+  }, []);
 
   const todayKey = getDateKey(new Date());
   const tomorrowKey = getTomorrowKey();
@@ -355,26 +300,46 @@ export default function LessonsPage() {
     setEditingLesson(null);
   };
 
-  const handleSaveLesson = (
+  const handleSaveLesson = async (
     data: LessonFormData,
   ) => {
     if (editingLesson) {
-      setLessons((current) =>
-        current.map((lesson) =>
-          lesson.id === editingLesson.id
-            ? {
-                ...lesson,
-                ...data,
-              }
-            : lesson,
-        ),
-      );
+      const result = await lessonService.update(editingLesson.id, {
+        subject: data.subject,
+        teacher: data.teacher,
+        group: data.group,
+        date: data.date,
+        time: data.time,
+        duration: data.duration,
+        room: data.room,
+        students: data.students,
+        status: STATUS_REVERSE[data.status],
+        notes: data.notes,
+      });
+      if (result) {
+        setLessons((current) =>
+          current.map((lesson) =>
+            lesson.id === editingLesson.id
+              ? { ...lesson, ...data }
+              : lesson,
+          ),
+        );
+      }
     } else {
+      const result = await lessonService.create({
+        subject: data.subject,
+        teacher: data.teacher,
+        group: data.group,
+        date: data.date,
+        time: data.time,
+        duration: data.duration,
+        room: data.room,
+        students: data.students,
+        status: STATUS_REVERSE[data.status],
+        notes: data.notes,
+      });
       setLessons((current) => [
-        {
-          id: Date.now(),
-          ...data,
-        },
+        { ...data, id: result.id },
         ...current,
       ]);
     }
@@ -382,7 +347,7 @@ export default function LessonsPage() {
     closeModal();
   };
 
-  const handleDelete = (lesson: Lesson) => {
+  const handleDelete = async (lesson: Lesson) => {
     const confirmed = window.confirm(
       `هل أنت متأكد من حذف حصة ${lesson.subject}؟`,
     );
@@ -391,11 +356,14 @@ export default function LessonsPage() {
       return;
     }
 
-    setLessons((current) =>
-      current.filter(
-        (item) => item.id !== lesson.id,
-      ),
-    );
+    const success = await lessonService.delete(lesson.id);
+    if (success) {
+      setLessons((current) =>
+        current.filter(
+          (item) => item.id !== lesson.id,
+        ),
+      );
+    }
   };
 
   return (

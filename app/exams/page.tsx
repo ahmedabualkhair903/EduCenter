@@ -2,6 +2,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -32,6 +33,8 @@ import {
 } from "react-icons/fi";
 
 import type { Exam, Grade } from "@/types/exam";
+import { examService } from "@/services";
+import LoadingState from "@/components/common/LoadingState";
 
 type Student = {
   id: string;
@@ -144,81 +147,6 @@ const MOCK_STUDENTS: Student[] = [
   },
 ];
 
-const MOCK_EXAMS: Exam[] = [
-  {
-    id: "exam-1",
-    name: "اختبار الشهر الأول",
-    subject: "الرياضيات",
-    groupId: "group-1",
-    maxScore: 50,
-    date: "2026-08-20",
-    createdAt: "2026-08-18",
-  },
-  {
-    id: "exam-2",
-    name: "اختبار الوحدة الثانية",
-    subject: "اللغة الإنجليزية",
-    groupId: "group-2",
-    maxScore: 40,
-    date: "2026-08-24",
-    createdAt: "2026-08-21",
-  },
-  {
-    id: "exam-3",
-    name: "امتحان تجريبي",
-    subject: "الفيزياء",
-    groupId: "group-1",
-    maxScore: 60,
-    date: "2026-08-28",
-    createdAt: "2026-08-25",
-  },
-];
-
-const MOCK_GRADES: Grade[] = [
-  {
-    id: "grade-1",
-    examId: "exam-1",
-    studentId: "student-1",
-    score: 45,
-    status: "approved",
-  },
-  {
-    id: "grade-2",
-    examId: "exam-1",
-    studentId: "student-2",
-    score: 42,
-    status: "approved",
-  },
-  {
-    id: "grade-3",
-    examId: "exam-1",
-    studentId: "student-3",
-    score: 38,
-    status: "approved",
-  },
-  {
-    id: "grade-4",
-    examId: "exam-1",
-    studentId: "student-4",
-    score: null,
-    status: "pending",
-  },
-  {
-    id: "grade-5",
-    examId: "exam-2",
-    studentId: "student-5",
-    score: 35,
-    status: "approved",
-  },
-  {
-    id: "grade-6",
-    examId: "exam-2",
-    studentId: "student-6",
-    score: null,
-    status: "pending",
-  },
-];
-
 const EMPTY_FORM: ExamForm = {
   name: "",
   subject: "",
@@ -230,7 +158,7 @@ const EMPTY_FORM: ExamForm = {
 function formatDate(date: string) {
   if (!date) return "—";
 
-  const value = new Date(`${date}T00:00:00`);
+  const value = new Date(date);
 
   if (Number.isNaN(value.getTime())) {
     return date;
@@ -279,11 +207,12 @@ function getWhatsAppStatusLabel(status: WhatsAppStatus) {
 }
 
 export default function ExamsPage() {
-  const [exams, setExams] = useState<Exam[]>(MOCK_EXAMS);
-  const [grades, setGrades] = useState<Grade[]>(MOCK_GRADES);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedExamId, setSelectedExamId] = useState<string | null>(
-    MOCK_EXAMS[0]?.id ?? null
+    null
   );
 
   const [search, setSearch] = useState("");
@@ -305,6 +234,35 @@ export default function ExamsPage() {
   >({});
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const [examList, gradeList] = await Promise.all([
+          examService.list(),
+          examService.grades(),
+        ]);
+
+        if (mounted) {
+          setExams(examList);
+          setGrades(gradeList);
+          setSelectedExamId(examList[0]?.id ?? null);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const selectedExam = useMemo(
     () => exams.find((exam) => exam.id === selectedExamId) ?? null,
@@ -393,7 +351,7 @@ export default function ExamsPage() {
     }));
   }
 
-  function handleCreateExam(
+  async function handleCreateExam(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -413,27 +371,25 @@ export default function ExamsPage() {
 
     setIsSaving(true);
 
-    window.setTimeout(() => {
-      const newExam: Exam = {
-        id: `exam-${Date.now()}`,
+    try {
+      const newExam = await examService.create({
         name: examForm.name.trim(),
         subject: examForm.subject.trim(),
         groupId: examForm.groupId,
         maxScore,
         date: examForm.date,
-        createdAt: new Date().toISOString().slice(0, 10),
-      };
+      });
 
       setExams((current) => [newExam, ...current]);
       setSelectedExamId(newExam.id);
-
+    } finally {
       setIsSaving(false);
       setShowExamModal(false);
       setExamForm(EMPTY_FORM);
-    }, 300);
+    }
   }
 
-  function updateGrade(
+  async function updateGrade(
     studentId: string,
     value: string
   ) {
@@ -451,36 +407,42 @@ export default function ExamsPage() {
       return;
     }
 
-    setGrades((current) => {
-      const existing = current.find(
-        (grade) =>
-          grade.examId === selectedExam.id &&
-          grade.studentId === studentId
-      );
+    const existing = grades.find(
+      (grade) =>
+        grade.examId === selectedExam.id &&
+        grade.studentId === studentId
+    );
 
+    try {
       if (existing) {
-        return current.map((grade) =>
-          grade.id === existing.id
-            ? {
-                ...grade,
-                score: gradeValue,
-                status: "pending",
-              }
-            : grade
+        const updated = await examService.updateGrade(
+          existing.id,
+          {
+            score: gradeValue,
+            status: "pending",
+          }
         );
-      }
 
-      return [
-        ...current,
-        {
-          id: `grade-${Date.now()}-${studentId}`,
+        if (updated) {
+          setGrades((current) =>
+            current.map((grade) =>
+              grade.id === updated.id ? updated : grade
+            )
+          );
+        }
+      } else {
+        const created = await examService.createGrade({
           examId: selectedExam.id,
           studentId,
           score: gradeValue,
           status: "pending",
-        },
-      ];
-    });
+        });
+
+        setGrades((current) => [...current, created]);
+      }
+    } catch {
+      // Persistence is best-effort; the UI remains the source of truth.
+    }
   }
 
   function openGrades(exam: Exam) {
@@ -488,7 +450,7 @@ export default function ExamsPage() {
     setShowGradesModal(true);
   }
 
-  function approveResults() {
+  async function approveResults() {
     if (!selectedExam) return;
 
     const currentRows = selectedExamStudents.map((student) => {
@@ -513,6 +475,18 @@ export default function ExamsPage() {
     if (!allEntered) {
       return;
     }
+
+    const examGrades = grades.filter(
+      (grade) => grade.examId === selectedExam.id
+    );
+
+    await Promise.all(
+      examGrades.map((grade) =>
+        examService.updateGrade(grade.id, {
+          status: "approved",
+        })
+      )
+    );
 
     setGrades((current) =>
       current.map((grade) =>
@@ -596,50 +570,55 @@ export default function ExamsPage() {
     setImportRows(preview);
   }
 
-  function applyImport() {
+  async function applyImport() {
     if (!selectedExam) return;
 
     const validRows = importRows.filter(
       (row) => row.status === "recognized"
     );
 
-    setGrades((current) => {
-      const next = [...current];
+    for (const row of validRows) {
+      const student = MOCK_STUDENTS.find(
+        (item) => item.studentId === row.studentId
+      );
 
-      validRows.forEach((row) => {
-        const student = MOCK_STUDENTS.find(
-          (item) => item.studentId === row.studentId
-        );
+      if (!student) continue;
 
-        if (!student) return;
+      const score = Number(row.score);
 
-        const score = Number(row.score);
+      const existingIndex = grades.findIndex(
+        (grade) =>
+          grade.examId === selectedExam.id &&
+          grade.studentId === student.id
+      );
 
-        const existingIndex = next.findIndex(
-          (grade) =>
-            grade.examId === selectedExam.id &&
-            grade.studentId === student.id
-        );
-
-        if (existingIndex >= 0) {
-          next[existingIndex] = {
-            ...next[existingIndex],
+      if (existingIndex >= 0) {
+        const updated = await examService.updateGrade(
+          grades[existingIndex].id,
+          {
             score,
             status: "pending",
-          };
-        } else {
-          next.push({
-            id: `grade-${Date.now()}-${student.id}`,
-            examId: selectedExam.id,
-            studentId: student.id,
-            score,
-            status: "pending",
-          });
+          }
+        );
+
+        if (updated) {
+          setGrades((current) =>
+            current.map((grade) =>
+              grade.id === updated.id ? updated : grade
+            )
+          );
         }
-      });
+      } else {
+        const created = await examService.createGrade({
+          examId: selectedExam.id,
+          studentId: student.id,
+          score,
+          status: "pending",
+        });
 
-      return next;
-    });
+        setGrades((current) => [...current, created]);
+      }
+    }
 
     setShowImportModal(false);
   }
@@ -812,7 +791,9 @@ export default function ExamsPage() {
               </div>
             </div>
 
-            {filteredExams.length === 0 ? (
+            {isLoading ? (
+              <LoadingState label="جاري تحميل الامتحانات..." />
+            ) : filteredExams.length === 0 ? (
               <EmptyState />
             ) : (
               <div className="overflow-x-auto">

@@ -17,4 +17,10 @@ export * from "./activityService";
 
 export * from "./studentCardService";
 
+export * from "./studentCardDesignerService";
+
 export * from "./studentCardTemplateService";
+
+export * from "./lessonService";
+
+export * from "./checkOutService";

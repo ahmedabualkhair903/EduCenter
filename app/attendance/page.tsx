@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -32,6 +33,7 @@ import type {
 } from "@/types";
 
 import { generateQRCode } from "@/lib/qr";
+import { attendanceService } from "@/services";
 
 /* -------------------------------------------------------------------------- */
 /* Local UI Types                                                             */
@@ -109,93 +111,6 @@ const lessons: LessonOption[] = [
   },
 ];
 
-const initialAttendance: AttendanceRecord[] = [
-  {
-    id: "attendance-1",
-    studentId: "student-1",
-    groupId: "group-a",
-    lessonId: "lesson-1",
-    student: "محمد أحمد علي",
-    phone: "01012345678",
-    status: "present",
-    checkedInAt: "2026-08-26T15:52:00",
-    deviceId: "DEVICE-204",
-    locationStatus: "allowed",
-  },
-  {
-    id: "attendance-2",
-    studentId: "student-2",
-    groupId: "group-a",
-    lessonId: "lesson-1",
-    student: "أحمد محمد حسن",
-    phone: "01123456789",
-    status: "present",
-    checkedInAt: "2026-08-26T15:58:00",
-    deviceId: "DEVICE-204",
-    locationStatus: "allowed",
-  },
-  {
-    id: "attendance-3",
-    studentId: "student-3",
-    groupId: "group-a",
-    lessonId: "lesson-1",
-    student: "سارة محمود",
-    phone: "01234567890",
-    status: "late",
-    checkedInAt: "2026-08-26T16:17:00",
-    deviceId: "DEVICE-310",
-    locationStatus: "allowed",
-  },
-  {
-    id: "attendance-4",
-    studentId: "student-4",
-    groupId: "group-a",
-    lessonId: "lesson-1",
-    student: "يوسف خالد",
-    phone: "01098765432",
-    status: "present",
-    checkedInAt: "2026-08-26T16:21:00",
-    deviceId: "DEVICE-411",
-    locationStatus: "allowed",
-  },
-  {
-    id: "attendance-5",
-    studentId: "student-5",
-    groupId: "group-a",
-    lessonId: "lesson-1",
-    student: "نور أحمد",
-    phone: "01199887766",
-    status: "present",
-    checkedInAt: "2026-08-26T16:25:00",
-    deviceId: "DEVICE-512",
-    locationStatus: "allowed",
-  },
-];
-
-const initialSuspicious: SuspiciousAttendanceCase[] = [
-  {
-    id: "suspicious-1",
-    attendanceIds: [
-      "attendance-1",
-      "attendance-2",
-    ],
-    studentIds: [
-      "student-1",
-      "student-2",
-    ],
-    studentNames: [
-      "محمد أحمد علي",
-      "أحمد محمد حسن",
-    ],
-    deviceId: "DEVICE-204",
-    reason:
-      "تم تسجيل أكثر من طالب من نفس الجهاز خلال فترة قصيرة.",
-    detectedAt:
-      "2026-08-26T16:03:00",
-    status: "pending",
-  },
-];
-
 /* -------------------------------------------------------------------------- */
 /* Page                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -214,14 +129,10 @@ export default function AttendancePage() {
     useState<AttendanceSessionStatus>("closed");
 
   const [attendance, setAttendance] =
-    useState<AttendanceRecord[]>(
-      initialAttendance,
-    );
+    useState<AttendanceRecord[]>([]);
 
   const [suspicious, setSuspicious] =
-    useState<SuspiciousAttendanceCase[]>(
-      initialSuspicious,
-    );
+    useState<SuspiciousAttendanceCase[]>([]);
 
   const [search, setSearch] =
     useState("");
@@ -239,7 +150,7 @@ export default function AttendancePage() {
     useState("");
 
   const [isLoading, setIsLoading] =
-    useState(false);
+    useState(true);
 
   const [locationStatus] =
     useState<
@@ -247,6 +158,39 @@ export default function AttendancePage() {
     >("allowed");
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const [attendanceList, suspiciousList] =
+          await Promise.all([
+            attendanceService.list(),
+            attendanceService.listSuspicious(),
+          ]);
+
+        if (mounted) {
+          setAttendance(attendanceList);
+          setSuspicious(suspiciousList);
+        }
+      } catch {
+        if (mounted) {
+          setError("حدث خطأ أثناء تحميل بيانات الحضور.");
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const selectedGroup =
     groups.find(
@@ -399,76 +343,77 @@ export default function AttendancePage() {
     }
   };
 
-  const updateAttendanceStatus = (
+  const updateAttendanceStatus = async (
     id: string,
     status: AttendanceStatus,
   ) => {
-    setAttendance((current) =>
-      current.map((record) =>
-        record.id === id
-          ? {
-              ...record,
-              status,
-              checkedInAt:
-                status === "present" ||
-                status === "late"
-                  ? record.checkedInAt ??
-                    new Date().toISOString()
-                  : record.checkedInAt,
-            }
-          : record,
-      ),
+    const updated = await attendanceService.updateStatus(
+      id,
+      status,
     );
+
+    if (updated) {
+      setAttendance((current) =>
+        current.map((record) =>
+          record.id === id ? updated : record,
+        ),
+      );
+    }
   };
 
-  const checkOutStudent = (
+  const checkOutStudent = async (
     id: string,
   ) => {
-    setAttendance((current) =>
-      current.map((record) =>
-        record.id === id
-          ? {
-              ...record,
-              checkedOutAt:
-                record.checkedOutAt ??
-                new Date().toISOString(),
-            }
-          : record,
-      ),
+    const updated = await attendanceService.checkOut(
+      id,
     );
+
+    if (updated) {
+      setAttendance((current) =>
+        current.map((record) =>
+          record.id === id ? updated : record,
+        ),
+      );
+    }
   };
 
-  const approveSuspicious = (
+  const approveSuspicious = async (
     id: string,
   ) => {
-    setSuspicious((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: "approved",
-            }
-          : item,
-      ),
-    );
+    const updated =
+      await attendanceService.updateSuspiciousStatus(
+        id,
+        "approved",
+      );
+
+    if (updated) {
+      setSuspicious((current) =>
+        current.map((item) =>
+          item.id === id ? updated : item,
+        ),
+      );
+    }
   };
 
-  const rejectSuspicious = (
+  const rejectSuspicious = async (
     id: string,
   ) => {
-    setSuspicious((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: "rejected",
-            }
-          : item,
-      ),
-    );
+    const updated =
+      await attendanceService.updateSuspiciousStatus(
+        id,
+        "rejected",
+      );
+
+    if (updated) {
+      setSuspicious((current) =>
+        current.map((item) =>
+          item.id === id ? updated : item,
+        ),
+      );
+    }
   };
 
-  const addSuspiciousNote = (
+  const addSuspiciousNote = async (
     id: string,
   ) => {
     const note = window.prompt(
@@ -479,16 +424,19 @@ export default function AttendancePage() {
       return;
     }
 
-    setSuspicious((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              note: note.trim(),
-            }
-          : item,
-      ),
-    );
+    const updated =
+      await attendanceService.updateSuspiciousNote(
+        id,
+        note.trim(),
+      );
+
+    if (updated) {
+      setSuspicious((current) =>
+        current.map((item) =>
+          item.id === id ? updated : item,
+        ),
+      );
+    }
   };
 
   return (

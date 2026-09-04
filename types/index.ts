@@ -6,3 +6,8 @@ export * from "./message";
 export * from "./activity";
 export * from "./group";
 export * from "./settings";
+export * from "./studentCard";
+export * from "./studentCardDesigner";
+export * from "./studentCardTemplate";
+export * from "./lesson";
+export * from "./checkOut";

@@ -39,6 +39,28 @@ export type WhatsAppMessage = {
 
   content?: string;
 
+  /**
+   * Display title used by the messages screen.
+   */
+  title?: string;
+
+  /**
+   * Display recipient label used by the messages screen.
+   */
+  recipient?: string;
+
+  /**
+   * Number of recipients for group/bulk messages.
+   */
+  recipientsCount?: number;
+
+  /**
+   * Scheduling labels used by the messages screen.
+   */
+  scheduledDate?: string;
+
+  scheduledTime?: string;
+
   createdAt: string;
 
   sentAt?: string;

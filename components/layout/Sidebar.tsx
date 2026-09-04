@@ -23,6 +23,7 @@ import {
 import { LuGraduationCap } from "react-icons/lu";
 
 import { useAppSettings } from "@/components/providers";
+import { logout } from "@/lib/auth";
 import type { ModuleKey } from "@/types";
 
 type SidebarProps = {
@@ -233,9 +234,7 @@ export default function Sidebar({
 
   const handleLogout = () => {
     onClose();
-
-    // Frontend-only logout for now.
-    // Backend authentication will be connected here later.
+    logout();
     router.replace("/login");
   };
 

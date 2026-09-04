@@ -1161,7 +1161,7 @@ function StudentModalContent({
                 </Field>
               </div>
             </section>
-```tsx
+
             <section className="mt-7 border-t border-slate-100 pt-6">
               <div className="mb-4">
                 <div className="flex items-start justify-between gap-3">

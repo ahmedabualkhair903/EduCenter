@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
+import Link from "next/link";
+
 import {
   FiArrowDown,
   FiArrowUp,
@@ -13,6 +17,15 @@ import {
   FiTrendingUp,
   FiUsers,
 } from "react-icons/fi";
+
+import {
+  attendanceService,
+  examService,
+  groupService,
+  messageService,
+  paymentService,
+  studentService,
+} from "@/services";
 
 type Stat = {
   title: string;
@@ -126,25 +139,132 @@ const quickActions = [
     label: "إضافة طالب",
     description: "تسجيل طالب جديد",
     icon: FiUsers,
+    href: "/students",
   },
   {
     label: "تسجيل حضور",
     description: "تسجيل حضور الطلاب",
     icon: FiCheckCircle,
+    href: "/attendance",
   },
   {
     label: "تسجيل دفعة",
     description: "إضافة دفعة مالية",
     icon: FiDollarSign,
+    href: "/payments",
   },
   {
     label: "إرسال رسالة",
     description: "التواصل مع أولياء الأمور",
     icon: FiMessageCircle,
+    href: "/messages",
   },
 ];
 
+const todayKey = new Date().toISOString().slice(0, 10);
+
+const formatMoney = (amount: number): string =>
+  `${amount.toLocaleString("en-US")} ج.م`;
+
 export default function DashboardPage() {
+  const [studentsCount, setStudentsCount] = useState(0);
+  const [todayPresent, setTodayPresent] = useState(0);
+  const [todayAbsent, setTodayAbsent] = useState(0);
+  const [collectedToday, setCollectedToday] = useState(0);
+  const [examsCount, setExamsCount] = useState(0);
+  const [messagesCount, setMessagesCount] = useState(0);
+  const [lessonSlots, setLessonSlots] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadStats = async () => {
+      try {
+        const [
+          students,
+          attendance,
+          payments,
+          exams,
+          messages,
+          groups,
+        ] = await Promise.all([
+          studentService.list(),
+          attendanceService.list(),
+          paymentService.list(),
+          examService.list(),
+          messageService.list(),
+          groupService.list(),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        const todayRecords = attendance
+          .filter((record) => {
+            const recordDay =
+              record.checkedInAt?.slice(0, 10) ??
+              record.checkedOutAt?.slice(0, 10) ??
+              todayKey;
+
+            return recordDay === todayKey;
+          })
+          .map((record) => record.status);
+
+        setStudentsCount(students.length);
+
+        setTodayPresent(
+          todayRecords.filter(
+            (status) =>
+              status === "present" ||
+              status === "late",
+          ).length,
+        );
+
+        setTodayAbsent(
+          todayRecords.filter(
+            (status) => status === "absent",
+          ).length,
+        );
+
+        const paymentRecords = payments.filter(
+          (payment) =>
+            payment.paidAt.slice(0, 10) === todayKey,
+        );
+
+        setCollectedToday(
+          paymentRecords.reduce(
+            (total, payment) =>
+              total + payment.amount,
+            0,
+          ),
+        );
+
+        setExamsCount(exams.length);
+
+        setMessagesCount(messages.length);
+
+        setLessonSlots(
+          new Set(
+            groups.flatMap((group) =>
+              group.schedule.map(
+                (slot) => slot.startTime,
+              ),
+            ),
+          ).size,
+        );
+      } catch {
+        // Keep the zeros; the fixed layout still renders.
+      }
+    };
+
+    void loadStats();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
@@ -181,6 +301,27 @@ export default function DashboardPage() {
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
+
+            const liveValue =
+              stat.title === "إجمالي الطلاب"
+                ? studentsCount.toLocaleString("en-US")
+                : stat.title === "الحضور اليوم"
+                  ? todayPresent.toLocaleString("en-US")
+                  : stat.title === "الغياب اليوم"
+                    ? todayAbsent.toLocaleString("en-US")
+                    : stat.title === "حصص اليوم"
+                      ? lessonSlots.toLocaleString("en-US")
+                      : stat.title === "المحصل اليوم"
+                        ? formatMoney(collectedToday)
+                        : stat.title ===
+                            "الامتحانات القادمة"
+                          ? examsCount.toLocaleString("en-US")
+                          : stat.title ===
+                              "رسائل WhatsApp"
+                            ? messagesCount.toLocaleString(
+                                "en-US",
+                              )
+                            : stat.value;
 
             return (
               <div
@@ -219,7 +360,7 @@ export default function DashboardPage() {
                 </p>
 
                 <p className="mt-1 text-xl font-bold tracking-tight text-slate-900">
-                  {stat.value}
+                  {liveValue}
                 </p>
 
                 <p className="mt-2 text-[10px] font-medium text-slate-400">
@@ -372,12 +513,12 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <button
-              type="button"
+            <Link
+              href="/lessons"
               className="mt-4 flex w-full items-center justify-center rounded-lg border border-slate-200 py-2.5 text-xs font-semibold text-slate-500 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
             >
               عرض جدول الحصص
-            </button>
+            </Link>
           </div>
         </section>
 
@@ -399,9 +540,9 @@ export default function DashboardPage() {
               const Icon = action.icon;
 
               return (
-                <button
+                <Link
                   key={action.label}
-                  type="button"
+                  href={action.href}
                   className="group flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-right transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/50 hover:shadow-sm"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-teal-100 group-hover:text-teal-600">
@@ -417,7 +558,7 @@ export default function DashboardPage() {
                       {action.description}
                     </span>
                   </span>
-                </button>
+                </Link>
               );
             })}
           </div>

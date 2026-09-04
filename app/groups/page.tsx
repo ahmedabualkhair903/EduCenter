@@ -21,10 +21,12 @@ import {
   FiX,
 } from "react-icons/fi";
 
+import { groupService, studentService } from "@/services";
+
 type GroupStatus = "نشطة" | "متوقفة";
 
 type Group = {
-  id: number;
+  id: string;
   name: string;
   subject: string;
   grade: string;
@@ -39,73 +41,17 @@ type Group = {
 
 const GROUP_STATUSES: GroupStatus[] = ["نشطة", "متوقفة"];
 
-const initialGroups: Group[] = [
-  {
-    id: 1,
-    name: "مجموعة أ",
-    subject: "الرياضيات",
-    grade: "ثالثة ثانوي",
-    teacher: "أحمد محمود",
-    room: "قاعة 1",
-    students: 28,
-    maxStudents: 30,
-    schedule: "الأحد - الثلاثاء - الخميس",
-    time: "04:00 م",
-    status: "نشطة",
-  },
-  {
-    id: 2,
-    name: "مجموعة ب",
-    subject: "اللغة الإنجليزية",
-    grade: "ثانية ثانوي",
-    teacher: "محمد علي",
-    room: "قاعة 2",
-    students: 24,
-    maxStudents: 25,
-    schedule: "السبت - الاثنين - الأربعاء",
-    time: "05:30 م",
-    status: "نشطة",
-  },
-  {
-    id: 3,
-    name: "مجموعة ج",
-    subject: "الفيزياء",
-    grade: "ثالثة ثانوي",
-    teacher: "خالد حسن",
-    room: "قاعة 3",
-    students: 21,
-    maxStudents: 25,
-    schedule: "الأحد - الثلاثاء",
-    time: "07:00 م",
-    status: "نشطة",
-  },
-  {
-    id: 4,
-    name: "مجموعة د",
-    subject: "الكيمياء",
-    grade: "ثالثة ثانوي",
-    teacher: "محمود أحمد",
-    room: "قاعة 4",
-    students: 18,
-    maxStudents: 25,
-    schedule: "الاثنين - الأربعاء",
-    time: "08:30 م",
-    status: "نشطة",
-  },
-  {
-    id: 5,
-    name: "مجموعة هـ",
-    subject: "اللغة العربية",
-    grade: "أولى ثانوي",
-    teacher: "سارة محمد",
-    room: "قاعة 1",
-    students: 15,
-    maxStudents: 20,
-    schedule: "السبت - الثلاثاء",
-    time: "03:30 م",
-    status: "متوقفة",
-  },
-];
+const STATUS_MAP: Record<string, GroupStatus> = {
+  active: "نشطة",
+  inactive: "متوقفة",
+};
+
+const STATUS_REVERSE: Record<GroupStatus, "active" | "inactive"> = {
+  "نشطة": "active",
+  "متوقفة": "inactive",
+};
+
+const PAGE_SIZE = 5;
 
 const subjects = [
   "الرياضيات",
@@ -142,10 +88,79 @@ const schedules = [
   "السبت - الثلاثاء",
 ];
 
-const PAGE_SIZE = 5;
+const toArabicTime = (time: string): string => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+
+  if (!match) {
+    return time;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+
+  return `${String(displayHours).padStart(2, "0")}:${minutes} ${
+    hours >= 12 ? "م" : "ص"
+  }`;
+};
+
+const to24HourTime = (time: string): string => {
+  const parts = time.trim().split(/\s+/);
+  const match = /^(\d{1,2}):(\d{2})$/.exec(parts[0] ?? "");
+
+  if (!match) {
+    return time;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const marker = parts.slice(1).join(" ");
+
+  if (marker.includes("م") && hours < 12) {
+    hours += 12;
+  }
+
+  if (marker.includes("ص") && hours === 12) {
+    hours = 0;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${minutes}`;
+};
+
+function mapServiceGroup(
+  g: {
+    id: string;
+    name: string;
+    subject: string;
+    grade: string;
+    teacher: string;
+    room?: string;
+    maxStudents: number;
+    schedule: { day: string; startTime: string; endTime?: string }[];
+    status: "active" | "inactive";
+  },
+): Group {
+  return {
+    id: g.id,
+    name: g.name,
+    subject: g.subject,
+    grade: g.grade,
+    teacher: g.teacher,
+    room: g.room ?? "",
+    students: 0,
+    maxStudents: g.maxStudents,
+    schedule: g.schedule.map((s) => s.day).join(" - "),
+    time:
+      g.schedule.length > 0
+        ? toArabicTime(g.schedule[0].startTime)
+        : "",
+    status: STATUS_MAP[g.status] ?? "نشطة",
+  };
+}
 
 export default function GroupsPage() {
-  const [groups, setGroups] = useState<Group[]>(initialGroups);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
 
@@ -164,7 +179,7 @@ export default function GroupsPage() {
 
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const [deleteGroup, setDeleteGroup] = useState<Group | null>(null);
 
@@ -174,6 +189,42 @@ export default function GroupsPage() {
    * without synchronously calling setState inside an effect.
    */
   const [modalInstance, setModalInstance] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const [groupList, studentList] = await Promise.all([
+          groupService.list(),
+          studentService.list(),
+        ]);
+
+        if (mounted) {
+          const counts: Record<string, number> = {};
+
+          for (const student of studentList) {
+            if (student.groupId) {
+              counts[student.groupId] =
+                (counts[student.groupId] ?? 0) + 1;
+            }
+          }
+
+          setGroups(
+            groupList.map((group) => ({
+              ...mapServiceGroup(group),
+              students: counts[group.id] ?? 0,
+            })),
+          );
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void loadData();
+    return () => { mounted = false; };
+  }, []);
 
   const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -296,21 +347,18 @@ export default function GroupsPage() {
     setDetailsOpen(true);
   };
 
-  const toggleGroupStatus = (group: Group) => {
-    setGroups((current) =>
-      current.map((item) =>
-        item.id === group.id
-          ? {
-              ...item,
-              status:
-                item.status === "نشطة"
-                  ? "متوقفة"
-                  : "نشطة",
-            }
-          : item,
-      ),
-    );
-
+  const toggleGroupStatus = async (group: Group) => {
+    const newStatus = group.status === "نشطة" ? "inactive" : "active";
+    const result = await groupService.update(group.id, { status: newStatus });
+    if (result) {
+      setGroups((current) =>
+        current.map((item) =>
+          item.id === group.id
+            ? { ...item, status: newStatus === "active" ? "نشطة" : "متوقفة" }
+            : item,
+        ),
+      );
+    }
     setOpenMenuId(null);
   };
 
@@ -319,45 +367,74 @@ export default function GroupsPage() {
     setDeleteGroup(group);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteGroup) {
       return;
     }
 
-    setGroups((current) =>
-      current.filter((group) => group.id !== deleteGroup.id),
-    );
+    const success = await groupService.delete(deleteGroup.id);
 
-    if (selectedGroup?.id === deleteGroup.id) {
-      setSelectedGroup(null);
-      setDetailsOpen(false);
+    if (success) {
+      setGroups((current) =>
+        current.filter((group) => group.id !== deleteGroup.id),
+      );
+
+      if (selectedGroup?.id === deleteGroup.id) {
+        setSelectedGroup(null);
+        setDetailsOpen(false);
+      }
     }
 
     setDeleteGroup(null);
   };
 
-  const handleSaveGroup = (
+  const handleSaveGroup = async (
     groupData: Omit<Group, "id" | "students">,
   ) => {
-    if (editingGroup) {
-      setGroups((current) =>
-        current.map((group) =>
-          group.id === editingGroup.id
-            ? {
-                ...group,
-                ...groupData,
-              }
-            : group,
-        ),
-      );
-    } else {
-      const newGroup: Group = {
-        id: Date.now(),
-        ...groupData,
-        students: 0,
-      };
+    const nextSchedule = groupData.schedule
+      .split(" - ")
+      .map((day) => day.trim())
+      .filter(Boolean)
+      .map((day) => ({
+        day,
+        startTime: to24HourTime(groupData.time),
+      }));
 
-      setGroups((current) => [newGroup, ...current]);
+    if (editingGroup) {
+      const result = await groupService.update(editingGroup.id, {
+        name: groupData.name,
+        subject: groupData.subject,
+        grade: groupData.grade,
+        teacher: groupData.teacher,
+        room: groupData.room,
+        maxStudents: groupData.maxStudents,
+        schedule: nextSchedule,
+        status: STATUS_REVERSE[groupData.status],
+      });
+      if (result) {
+        setGroups((current) =>
+          current.map((group) =>
+            group.id === editingGroup.id
+              ? { ...group, ...groupData }
+              : group,
+          ),
+        );
+      }
+    } else {
+      const result = await groupService.create({
+        name: groupData.name,
+        subject: groupData.subject,
+        grade: groupData.grade,
+        teacher: groupData.teacher,
+        room: groupData.room,
+        maxStudents: groupData.maxStudents,
+        schedule: nextSchedule,
+        status: STATUS_REVERSE[groupData.status],
+      });
+      setGroups((current) => [
+        { ...groupData, id: result.id, students: 0 },
+        ...current,
+      ]);
     }
 
     setModalOpen(false);
@@ -535,7 +612,17 @@ export default function GroupsPage() {
               </thead>
 
               <tbody>
-                {paginatedGroups.map((group) => {
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-5 py-16 text-center text-sm text-slate-400"
+                    >
+                      جاري تحميل بيانات المجموعات...
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedGroups.map((group) => {
                   const occupancy =
                     group.maxStudents === 0
                       ? 0
@@ -734,7 +821,8 @@ export default function GroupsPage() {
                       </td>
                     </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
 

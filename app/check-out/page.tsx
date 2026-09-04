@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
 FiCheckCircle,
 FiChevronDown,
@@ -10,112 +10,18 @@ FiSearch,
 FiUsers,
 } from "react-icons/fi";
 
+import { checkOutService } from "@/services";
+import type { CheckOutRecord } from "@/types";
+
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
-type CheckOutRecord = {
-id: string;
-studentId: string;
-groupId: string;
-lessonId: string;
-
-student: string;
-phone: string;
-group: string;
-subject: string;
-
-checkIn: string;
-checkOut: string;
-};
-
 type CheckOutStatus = "inside" | "checked-out";
 
 /* -------------------------------------------------------------------------- */
-/* Mock Data                                                                  */
+/* Static UI Options                                                          */
 /* -------------------------------------------------------------------------- */
-
-/**
-
-* بيانات تجريبية مؤقتة.
-*
-* عند ربط Backend لاحقًا، يتم استبدال هذه البيانات بمصدر Attendance Service
-* بدون الحاجة لتغيير واجهة الصفحة أو منطق تسجيل الانصراف.
-  */
-  const initialRecords: CheckOutRecord[] = [
-  {
-  id: "attendance-1",
-  studentId: "student-1",
-  groupId: "group-a",
-  lessonId: "lesson-1",
-  student: "محمد أحمد علي",
-  phone: "01012345678",
-  group: "مجموعة أ",
-  subject: "الرياضيات",
-  checkIn: "03:52 م",
-  checkOut: "05:05 م",
-  },
-  {
-  id: "attendance-2",
-  studentId: "student-2",
-  groupId: "group-a",
-  lessonId: "lesson-1",
-  student: "أحمد محمد حسن",
-  phone: "01123456789",
-  group: "مجموعة أ",
-  subject: "الرياضيات",
-  checkIn: "03:58 م",
-  checkOut: "05:03 م",
-  },
-  {
-  id: "attendance-3",
-  studentId: "student-3",
-  groupId: "group-b",
-  lessonId: "lesson-2",
-  student: "سارة محمود",
-  phone: "01234567890",
-  group: "مجموعة ب",
-  subject: "اللغة الإنجليزية",
-  checkIn: "05:47 م",
-  checkOut: "06:40 م",
-  },
-  {
-  id: "attendance-5",
-  studentId: "student-5",
-  groupId: "group-d",
-  lessonId: "lesson-4",
-  student: "نور أحمد",
-  phone: "01199887766",
-  group: "مجموعة د",
-  subject: "الكيمياء",
-  checkIn: "08:22 م",
-  checkOut: "-",
-  },
-  {
-  id: "attendance-7",
-  studentId: "student-7",
-  groupId: "group-b",
-  lessonId: "lesson-2",
-  student: "ملك أحمد",
-  phone: "01055667788",
-  group: "مجموعة ب",
-  subject: "اللغة الإنجليزية",
-  checkIn: "05:21 م",
-  checkOut: "-",
-  },
-  {
-  id: "attendance-8",
-  studentId: "student-8",
-  groupId: "group-a",
-  lessonId: "lesson-1",
-  student: "عبد الرحمن سامي",
-  phone: "01122334455",
-  group: "مجموعة أ",
-  subject: "الرياضيات",
-  checkIn: "04:17 م",
-  checkOut: "-",
-  },
-  ];
 
 const groups = [
 "الكل",
@@ -131,14 +37,42 @@ const groups = [
 
 export default function CheckOutPage() {
 const [records, setRecords] =
-useState<CheckOutRecord[]>(initialRecords);
+useState<CheckOutRecord[]>([]);
 
 const [search, setSearch] = useState("");
 const [groupFilter, setGroupFilter] =
 useState<string>("الكل");
 
-const [isLoading] = useState(false);
-const [error] = useState("");
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState("");
+
+useEffect(() => {
+let mounted = true;
+
+const loadRecords = async () => {
+  try {
+    const data = await checkOutService.list();
+
+    if (mounted) {
+      setRecords(data);
+    }
+  } catch {
+    if (mounted) {
+      setError("حدث خطأ أثناء تحميل بيانات الانصراف.");
+    }
+  } finally {
+    if (mounted) {
+      setIsLoading(false);
+    }
+  }
+};
+
+void loadRecords();
+
+return () => {
+  mounted = false;
+};
+}, []);
 
 /* ------------------------------------------------------------------------ */
 /* Derived Data                                                             */
@@ -186,56 +120,59 @@ const checkedOutCount = records.filter(
 /* Actions                                                                  */
 /* ------------------------------------------------------------------------ */
 
-const checkOutStudent = (id: string) => {
-setRecords((current) =>
-current.map((record) => {
-if (record.id !== id) {
-return record;
+const checkOutStudent = async (id: string) => {
+const record = records.find((item) => item.id === id);
+
+if (
+  !record ||
+  !hasCheckIn(record) ||
+  hasCheckOut(record)
+) {
+  return;
 }
 
+const updated = await checkOutService.update(id, {
+  checkOut: getCurrentTime(),
+});
 
-    if (
-      !hasCheckIn(record) ||
-      hasCheckOut(record)
-    ) {
-      return record;
-    }
-
-    return {
-      ...record,
-      checkOut: getCurrentTime(),
-    };
-  }),
-);
-
-
+if (updated) {
+  setRecords((current) =>
+    current.map((item) =>
+      item.id === id ? updated : item
+    ),
+  );
+}
 };
 
-const checkOutAll = () => {
+const checkOutAll = async () => {
 if (insideCount === 0) {
 return;
 }
 
-
 const currentTime = getCurrentTime();
+const insideRecords = records.filter(
+  (record) =>
+    hasCheckIn(record) &&
+    !hasCheckOut(record),
+);
+
+const results = await Promise.all(
+  insideRecords.map((record) =>
+    checkOutService.update(record.id, {
+      checkOut: currentTime,
+    }),
+  ),
+);
 
 setRecords((current) =>
   current.map((record) => {
-    if (
-      !hasCheckIn(record) ||
-      hasCheckOut(record)
-    ) {
-      return record;
-    }
+    const updated = results.find(
+      (item) => item?.id === record.id,
+    );
 
-    return {
-      ...record,
-      checkOut: currentTime,
-    };
+    return updated ?? record;
   }),
 );
-
-
 };
 
 const clearFilters = () => {

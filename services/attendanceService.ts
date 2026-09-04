@@ -1,5 +1,5 @@
 
-import { mockAttendance } from "@/data";
+import { mockAttendance, mockSuspicious } from "@/data";
 
 import type {
   AttendanceRecord,
@@ -30,7 +30,7 @@ const attendanceData =
 const suspiciousData =
   loadFromStorage<SuspiciousAttendanceCase[]>(
     STORAGE_KEY_SUSPICIOUS,
-    [],
+    mockSuspicious,
   );
 
 export type AttendanceScannerStatus =
@@ -620,6 +620,45 @@ export const attendanceService = {
       {
         ...suspiciousData[index],
         status,
+      };
+
+    suspiciousData[index] =
+      updatedCase;
+
+    saveToStorage(
+      STORAGE_KEY_SUSPICIOUS,
+      suspiciousData,
+    );
+
+    return mockRequest(
+      updatedCase,
+    );
+  },
+
+  /**
+   * Update the note of a suspicious attendance case.
+   * Backend replacement:
+   * PATCH /attendance-suspicious/:id
+   */
+  updateSuspiciousNote: async (
+    id: string,
+    note: string,
+  ): Promise<
+    SuspiciousAttendanceCase | null
+  > => {
+    const index =
+      suspiciousData.findIndex(
+        (item) => item.id === id,
+      );
+
+    if (index === -1) {
+      return mockRequest(null);
+    }
+
+    const updatedCase: SuspiciousAttendanceCase =
+      {
+        ...suspiciousData[index],
+        note,
       };
 
     suspiciousData[index] =

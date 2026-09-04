@@ -2,6 +2,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -23,6 +24,7 @@ import {
 } from "react-icons/fi";
 
 import { useAppSettings } from "@/components/providers";
+import { messageService } from "@/services";
 
 import type {
   MessageStatus,
@@ -34,98 +36,22 @@ type MessageRecord = WhatsAppMessage & {
   title: string;
   recipient: string;
   recipientsCount: number;
-  scheduledDate?: string;
-  scheduledTime?: string;
 };
 
-const initialMessages: MessageRecord[] = [
-  {
-    id: "1",
-    studentId: "group-3-secondary",
-    guardianPhone: "",
-    type: "attendance",
-    status: "sent",
-    title: "تأكيد الحضور",
-    recipient: "أولياء أمور ثالثة ثانوي",
-    content: "تم تسجيل حضور الطالب في حصة الفيزياء.",
-    createdAt: "2026-08-23T15:15:00",
-    sentAt: "2026-08-23T15:15:00",
-    recipientsCount: 32,
-    scheduledDate: "23 أغسطس 2026",
-    scheduledTime: "03:15 م",
-  },
-  {
-    id: "2",
-    studentId: "group-3-secondary-a",
-    guardianPhone: "",
-    type: "examResult",
-    status: "sent",
-    title: "نتائج الامتحان",
-    recipient: "ثالثة ثانوي - A",
-    content: "تم اعتماد نتيجة امتحان الفيزياء.",
-    createdAt: "2026-08-23T13:40:00",
-    sentAt: "2026-08-23T13:40:00",
-    recipientsCount: 32,
-    scheduledDate: "23 أغسطس 2026",
-    scheduledTime: "01:40 م",
-  },
-  {
-    id: "3",
-    studentId: "late-payments",
-    guardianPhone: "",
-    type: "reminder",
-    status: "scheduled",
-    title: "تذكير بالرسوم الدراسية",
-    recipient: "الطلاب المتأخرون في الدفع",
-    content:
-      "يرجى التوجه إلى إدارة المركز لسداد المبلغ المتبقي.",
-    createdAt: "2026-08-24T10:00:00",
-    recipientsCount: 38,
-    scheduledDate: "24 أغسطس 2026",
-    scheduledTime: "10:00 ص",
-  },
-  {
-    id: "4",
-    studentId: "group-2-secondary-b",
-    guardianPhone: "",
-    type: "absence",
-    status: "pending",
-    title: "إشعار غياب",
-    recipient: "ثانية ثانوي - B",
-    content: "نحيطكم علمًا بغياب الطالب عن الحصة.",
-    createdAt: "2026-08-24T08:30:00",
-    recipientsCount: 3,
-  },
-  {
-    id: "5",
-    studentId: "student-1",
-    guardianPhone: "",
-    type: "individual",
-    status: "sent",
-    title: "رسالة ترحيب",
-    recipient: "أحمد محمد",
-    content:
-      "مرحبًا بكم في مركزنا التعليمي، نتمنى لكم التوفيق.",
-    createdAt: "2026-08-21T11:20:00",
-    sentAt: "2026-08-21T11:20:00",
-    recipientsCount: 1,
-    scheduledDate: "21 أغسطس 2026",
-    scheduledTime: "11:20 ص",
-  },
-  {
-    id: "6",
-    studentId: "group-1-secondary-a",
-    guardianPhone: "",
-    type: "checkOut",
-    status: "failed",
-    title: "إشعار الانصراف",
-    recipient: "أولى ثانوي - A",
-    content: "تم تسجيل انصراف الطالب من المركز.",
-    createdAt: "2026-08-24T16:00:00",
-    recipientsCount: 25,
-    error: "تعذر تجهيز الرسالة في Mock Service.",
-  },
-];
+function mapServiceMessage(
+  message: WhatsAppMessage,
+): MessageRecord {
+  return {
+    ...message,
+    title: message.title ?? "رسالة",
+    recipient:
+      message.recipient ??
+      message.guardianPhone ??
+      message.studentId,
+    recipientsCount:
+      message.recipientsCount ?? 1,
+  };
+}
 
 const statusOptions: Array<{
   value: "all" | MessageStatus;
@@ -158,7 +84,7 @@ export default function MessagesPage() {
   const { settings, isModuleEnabled } = useAppSettings();
 
   const [messages, setMessages] =
-    useState<MessageRecord[]>(initialMessages);
+    useState<MessageRecord[]>([]);
 
   const [search, setSearch] = useState("");
 
@@ -172,6 +98,28 @@ export default function MessagesPage() {
 
   const [editingMessage, setEditingMessage] =
     useState<MessageRecord | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMessages = async () => {
+      try {
+        const data = await messageService.list();
+
+        if (mounted) {
+          setMessages(data.map(mapServiceMessage));
+        }
+      } catch {
+        // Keep the list empty; errors surface on next action.
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const whatsappEnabled =
     isModuleEnabled("whatsapp") &&
@@ -254,40 +202,44 @@ export default function MessagesPage() {
     setEditingMessage(null);
   };
 
-  const handleSave = (
+  const handleSave = async (
     data: Omit<
       MessageRecord,
       "id" | "createdAt" | "sentAt"
     >,
   ) => {
-    if (editingMessage) {
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === editingMessage.id
-            ? {
-                ...message,
-                ...data,
-              }
-            : message,
-        ),
-      );
-    } else {
-      const newMessage: MessageRecord = {
-        id: crypto.randomUUID(),
-        ...data,
-        createdAt: new Date().toISOString(),
-      };
+    try {
+      if (editingMessage) {
+        const updated = await messageService.update(
+          editingMessage.id,
+          data,
+        );
 
-      setMessages((current) => [
-        newMessage,
-        ...current,
-      ]);
+        if (updated) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === editingMessage.id
+                ? { ...message, ...data }
+                : message,
+            ),
+          );
+        }
+      } else {
+        const created = await messageService.create(
+          data,
+        );
+
+        setMessages((current) => [
+          mapServiceMessage(created),
+          ...current,
+        ]);
+      }
+    } finally {
+      closeModal();
     }
-
-    closeModal();
   };
 
-  const handleDelete = (
+  const handleDelete = async (
     message: MessageRecord,
   ) => {
     const confirmed = window.confirm(
@@ -298,14 +250,20 @@ export default function MessagesPage() {
       return;
     }
 
-    setMessages((current) =>
-      current.filter(
-        (item) => item.id !== message.id,
-      ),
+    const success = await messageService.delete(
+      message.id,
     );
+
+    if (success) {
+      setMessages((current) =>
+        current.filter(
+          (item) => item.id !== message.id,
+        ),
+      );
+    }
   };
 
-  const handleSend = (
+  const handleSend = async (
     message: MessageRecord,
   ) => {
     if (
@@ -316,17 +274,27 @@ export default function MessagesPage() {
       return;
     }
 
-    setMessages((current) =>
-      current.map((item) =>
-        item.id === message.id
-          ? {
-              ...item,
-              status: "pending",
-              error: undefined,
-            }
-          : item,
-      ),
+    const updated = await messageService.update(
+      message.id,
+      {
+        status: "pending",
+        error: undefined,
+      },
     );
+
+    if (updated) {
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === message.id
+            ? {
+                ...item,
+                status: "pending",
+                error: undefined,
+              }
+            : item,
+        ),
+      );
+    }
   };
 
   return (
