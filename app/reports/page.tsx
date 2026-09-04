@@ -2,6 +2,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -20,7 +21,24 @@ import {
 } from "react-icons/fi";
 
 import { useAppSettings } from "@/components/providers";
-import type { ModuleKey } from "@/types";
+
+import { attendanceService } from "@/services/attendanceService";
+import { examService } from "@/services/examService";
+import { groupService } from "@/services/groupService";
+import { lessonService } from "@/services/lessonService";
+import { paymentService } from "@/services/paymentService";
+import { studentService } from "@/services/studentService";
+
+import type {
+  AttendanceRecord,
+  Exam,
+  Grade,
+  Group,
+  Lesson,
+  ModuleKey,
+  Payment,
+  Student,
+} from "@/types";
 
 type ReportType =
   | "students"
@@ -42,10 +60,20 @@ type ReportRow = {
   value: string;
 };
 
-type SummaryItem = {
-  value: string;
+type ReportsData = {
+  students: Student[];
+  attendance: AttendanceRecord[];
+  payments: Payment[];
+  groups: Group[];
+  lessons: Lesson[];
+  exams: Exam[];
+  grades: Grade[];
+  loading: boolean;
+};
+
+type ReportChartBar = {
   label: string;
-  trend: string;
+  value: number;
 };
 
 const reportCards: ReportCard[] = [
@@ -91,30 +119,15 @@ const reportCards: ReportCard[] = [
   },
 ];
 
-const summaryData: Record<
-  "students" | "attendance" | "payments" | "debts",
-  SummaryItem
-> = {
-  students: {
-    value: "1,248",
-    label: "إجمالي الطلاب",
-    trend: "+8.4%",
-  },
-  attendance: {
-    value: "91.6%",
-    label: "نسبة الحضور",
-    trend: "+3.2%",
-  },
-  payments: {
-    value: "184,500 ج.م",
-    label: "إجمالي المحصل",
-    trend: "+12.8%",
-  },
-  debts: {
-    value: "42,300 ج.م",
-    label: "إجمالي الديون",
-    trend: "-5.6%",
-  },
+const emptyReportsData: ReportsData = {
+  students: [],
+  attendance: [],
+  payments: [],
+  groups: [],
+  lessons: [],
+  exams: [],
+  grades: [],
+  loading: true,
 };
 
 export default function ReportsPage() {
@@ -125,6 +138,148 @@ export default function ReportsPage() {
 
   const [activeReport, setActiveReport] =
     useState<ReportType>("students");
+
+  const [reportsData, setReportsData] =
+    useState<ReportsData>(
+      emptyReportsData,
+    );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const [
+          students,
+          attendance,
+          payments,
+          groups,
+          lessons,
+          exams,
+          grades,
+        ] = await Promise.all([
+          studentService.list(),
+          attendanceService.list(),
+          paymentService.list(),
+          groupService.list(),
+          lessonService.list(),
+          examService.list(),
+          examService.grades(),
+        ]);
+
+        if (mounted) {
+          setReportsData({
+            students,
+            attendance,
+            payments,
+            groups,
+            lessons,
+            exams,
+            grades,
+            loading: false,
+          });
+        }
+      } catch {
+        if (mounted) {
+          setReportsData({
+            ...emptyReportsData,
+            loading: false,
+          });
+        }
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const summary = useMemo(() => {
+    const totalStudents =
+      reportsData.students.length;
+
+    const markedRecords =
+      reportsData.attendance.filter(
+        (record) =>
+          record.status === "present" ||
+          record.status === "late" ||
+          record.status === "absent",
+      );
+
+    const presentCount =
+      markedRecords.filter(
+        (record) =>
+          record.status === "present" ||
+          record.status === "late",
+      ).length;
+
+    const attendanceRate =
+      markedRecords.length === 0
+        ? 0
+        : Math.round(
+            (presentCount /
+              markedRecords.length) *
+              100,
+          );
+
+    const collected =
+      reportsData.payments.reduce(
+        (total, payment) =>
+          total + payment.amount,
+        0,
+      );
+
+    const debts =
+      reportsData.students.reduce(
+        (total, student) =>
+          total +
+          student.financial.remaining,
+        0,
+      );
+
+    return {
+      students: {
+        value: formatNumber(
+          totalStudents,
+        ),
+        label: "إجمالي الطلاب",
+        trend: `${formatNumber(
+          reportsData.students.filter(
+            (student) =>
+              student.status === "active",
+          ).length,
+        )} نشط`,
+      },
+      attendance: {
+        value: formatPercent(
+          attendanceRate,
+        ),
+        label: "نسبة الحضور",
+        trend: `${formatNumber(
+          markedRecords.length,
+        )} سجل`,
+      },
+      payments: {
+        value: formatMoney(collected),
+        label: "إجمالي المحصل",
+        trend: `${formatNumber(
+          reportsData.payments.length,
+        )} دفعة`,
+      },
+      debts: {
+        value: formatMoney(debts),
+        label: "إجمالي الديون",
+        trend: `${formatNumber(
+          reportsData.students.filter(
+            (student) =>
+              student.financial.remaining > 0,
+          ).length,
+        )} طالب`,
+      },
+    };
+  }, [reportsData]);
 
   const availableReports = useMemo(
     () =>
@@ -143,15 +298,42 @@ export default function ReportsPage() {
     return current ?? availableReports[0];
   }, [activeReport, availableReports]);
 
+  const reportMetrics = useMemo(() => {
+    if (!selectedReport) {
+      return {
+        primary: "—",
+        secondaryLabel: "قيمة ثانوية",
+        secondary: "—",
+      };
+    }
+
+    return buildReportMetrics(
+      selectedReport.type,
+      reportsData,
+    );
+  }, [selectedReport, reportsData]);
+
   const reportRows = useMemo(() => {
     if (!selectedReport) {
       return [];
     }
 
-    return getReportRows(
+    return buildReportRows(
       selectedReport.type,
+      reportsData,
     );
-  }, [selectedReport]);
+  }, [selectedReport, reportsData]);
+
+  const chartBars = useMemo(() => {
+    if (!selectedReport) {
+      return [];
+    }
+
+    return buildChartBars(
+      selectedReport.type,
+      reportsData,
+    );
+  }, [selectedReport, reportsData]);
 
   const handleReportChange = (
     type: ReportType,
@@ -164,9 +346,7 @@ export default function ReportsPage() {
       return;
     }
 
-    const rows = getReportRows(
-      selectedReport.type,
-    );
+    const rows = reportRows;
 
     const csvRows: string[][] = [
       ["التقرير", selectedReport.title],
@@ -350,30 +530,30 @@ export default function ReportsPage() {
 
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
-            label={summaryData.students.label}
-            value={summaryData.students.value}
-            trend={summaryData.students.trend}
+            label={summary.students.label}
+            value={summary.students.value}
+            trend={summary.students.trend}
             icon={<FiUsers size={18} />}
           />
 
           <SummaryCard
-            label={summaryData.attendance.label}
-            value={summaryData.attendance.value}
-            trend={summaryData.attendance.trend}
+            label={summary.attendance.label}
+            value={summary.attendance.value}
+            trend={summary.attendance.trend}
             icon={<FiCheckCircle size={18} />}
           />
 
           <SummaryCard
-            label={summaryData.payments.label}
-            value={summaryData.payments.value}
-            trend={summaryData.payments.trend}
+            label={summary.payments.label}
+            value={summary.payments.value}
+            trend={summary.payments.trend}
             icon={<FiDollarSign size={18} />}
           />
 
           <SummaryCard
-            label={summaryData.debts.label}
-            value={summaryData.debts.value}
-            trend={summaryData.debts.trend}
+            label={summary.debts.label}
+            value={summary.debts.value}
+            trend={summary.debts.trend}
             icon={<FiClock size={18} />}
             negative
           />
@@ -466,27 +646,18 @@ export default function ReportsPage() {
                 </p>
               </div>
             </div>
-
-            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              بيانات تجريبية
-            </div>
           </div>
 
           <div className="p-5 sm:p-6">
             <div className="grid gap-4 md:grid-cols-3">
               <ReportMetric
                 label="القيمة الأساسية"
-                value={getReportValue(
-                  selectedReport.type,
-                )}
+                value={reportMetrics.primary}
               />
 
               <ReportMetric
-                label="التغير عن الفترة السابقة"
-                value={getReportTrend(
-                  selectedReport.type,
-                )}
+                label={reportMetrics.secondaryLabel}
+                value={reportMetrics.secondary}
               />
 
               <ReportMetric
@@ -516,40 +687,42 @@ export default function ReportsPage() {
               </div>
 
               <div className="flex h-48 items-end gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white px-4 py-5">
-                {[
-                  45,
-                  62,
-                  51,
-                  74,
-                  68,
-                  86,
-                  78,
-                  92,
-                  81,
-                  96,
-                  88,
-                  100,
-                ].map(
-                  (height, index) => (
-                    <div
-                      key={`bar-${index + 1}`}
-                      className="flex h-full flex-1 items-end"
-                    >
+                {chartBars.length === 0 ? (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                    لا توجد بيانات كافية للرسم.
+                  </div>
+                ) : (
+                  chartBars.map(
+                    (bar, index) => (
                       <div
-                        className="w-full rounded-t-md bg-teal-500/80 transition hover:bg-teal-600"
-                        style={{
-                          height: `${height}%`,
-                        }}
-                        title={`الأسبوع ${index + 1}`}
-                      />
-                    </div>
-                  ),
+                        key={`${selectedReport.type}-${index}`}
+                        className="flex h-full flex-1 items-end"
+                      >
+                        <div
+                          className="w-full rounded-t-md bg-teal-500/80 transition hover:bg-teal-600"
+                          style={{
+                            height: `${bar.value}%`,
+                          }}
+                          title={`${bar.label} (${bar.value}%)`}
+                        />
+                      </div>
+                    ),
+                  )
                 )}
               </div>
 
-              <div className="mt-3 flex justify-between text-[10px] text-slate-400">
-                <span>الأسبوع 1</span>
-                <span>الأسبوع 12</span>
+              <div className="mt-3 flex justify-between gap-2 text-[10px] text-slate-400">
+                <span className="truncate">
+                  {chartBars[0]?.label ?? ""}
+                </span>
+
+                <span className="truncate">
+                  {chartBars.length > 1
+                    ? chartBars[
+                        chartBars.length - 1
+                      ].label
+                    : ""}
+                </span>
               </div>
             </div>
 
@@ -632,14 +805,15 @@ export default function ReportsPage() {
 
             <div>
               <h2 className="text-sm font-bold text-slate-800">
-                التقارير جاهزة للـAPI
+                بيانات محسوبة من النظام
               </h2>
 
               <p className="mt-1 max-w-3xl text-[11px] leading-5 text-slate-400">
-                البيانات المعروضة حاليًا تجريبية بهدف تجهيز
-                الواجهة. عند ربط Backend يمكن استبدال مصدر
-                البيانات فقط دون تغيير تصميم الصفحة أو تجربة
-                المستخدم.
+                تُحتسب كل القيم والأرقام المحفوظة محليًا
+                (Offline) من سجلات الطلاب والحضور والمدفوعات
+                والمجموعات والامتحانات، وتتحدث تلقائيًا مع أي
+                تعديل. عند ربط Backend يمكن استبدال مصدر
+                البيانات فقط دون تغيير تصميم الصفحة.
               </p>
             </div>
           </div>
@@ -686,7 +860,7 @@ function SummaryCard({
                 : "text-teal-600",
             ].join(" ")}
           >
-            {trend} مقارنة بالفترة السابقة
+            {trend}
           </p>
         </div>
 
@@ -722,95 +896,305 @@ function ReportMetric({
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function getReportValue(
+function formatNumber(value: number): string {
+  return Math.round(value).toLocaleString(
+    "ar-EG",
+  );
+}
+
+function formatMoney(value: number): string {
+  return `${formatNumber(value)} ج.م`;
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value)}%`;
+}
+
+function getAttendanceRate(
+  records: AttendanceRecord[],
+): number {
+  const marked = records.filter(
+    (record) =>
+      record.status === "present" ||
+      record.status === "late" ||
+      record.status === "absent",
+  );
+
+  if (marked.length === 0) {
+    return 0;
+  }
+
+  const present = marked.filter(
+    (record) =>
+      record.status === "present" ||
+      record.status === "late",
+  ).length;
+
+  return Math.round(
+    (present / marked.length) * 100,
+  );
+}
+
+function getAverageScore(
+  grades: Grade[],
+  exams: Exam[],
+): number | null {
+  let total = 0;
+  let count = 0;
+
+  for (const grade of grades) {
+    if (grade.score === null) {
+      continue;
+    }
+
+    const maxScore =
+      exams.find(
+        (exam) => exam.id === grade.examId,
+      )?.maxScore ?? 0;
+
+    if (maxScore <= 0) {
+      continue;
+    }
+
+    total +=
+      (grade.score / maxScore) * 100;
+    count += 1;
+  }
+
+  if (count === 0) {
+    return null;
+  }
+
+  return Math.round(total / count);
+}
+
+function getPassRate(
+  grades: Grade[],
+  exams: Exam[],
+): number | null {
+  let passed = 0;
+  let count = 0;
+
+  for (const grade of grades) {
+    if (grade.score === null) {
+      continue;
+    }
+
+    const maxScore =
+      exams.find(
+        (exam) => exam.id === grade.examId,
+      )?.maxScore ?? 0;
+
+    if (maxScore <= 0) {
+      continue;
+    }
+
+    count += 1;
+
+    if (grade.score >= maxScore * 0.5) {
+      passed += 1;
+    }
+  }
+
+  if (count === 0) {
+    return null;
+  }
+
+  return Math.round((passed / count) * 100);
+}
+
+function buildReportMetrics(
   type: ReportType,
-): string {
+  data: ReportsData,
+): {
+  primary: string;
+  secondaryLabel: string;
+  secondary: string;
+} {
   switch (type) {
-    case "students":
-      return "1,248";
+    case "students": {
+      const active = data.students.filter(
+        (student) =>
+          student.status === "active",
+      ).length;
+
+      return {
+        primary: formatNumber(
+          data.students.length,
+        ),
+        secondaryLabel: "الطلاب النشطون",
+        secondary: formatNumber(active),
+      };
+    }
 
     case "attendance":
-      return "91.6%";
+      return {
+        primary: formatPercent(
+          getAttendanceRate(data.attendance),
+        ),
+        secondaryLabel: "سجلات الحضور",
+        secondary: formatNumber(
+          data.attendance.length,
+        ),
+      };
 
-    case "payments":
-      return "184,500 ج.م";
+    case "payments": {
+      const collected =
+        data.payments.reduce(
+          (total, payment) =>
+            total + payment.amount,
+          0,
+        );
+
+      return {
+        primary: formatMoney(collected),
+        secondaryLabel: "عدد الدفعات",
+        secondary: formatNumber(
+          data.payments.length,
+        ),
+      };
+    }
 
     case "groups":
-      return "36";
+      return {
+        primary: formatNumber(
+          data.groups.length,
+        ),
+        secondaryLabel: "عدد الحصص",
+        secondary: formatNumber(
+          data.lessons.length,
+        ),
+      };
 
-    case "exams":
-      return "87.4%";
+    case "exams": {
+      const average = getAverageScore(
+        data.grades,
+        data.exams,
+      );
+
+      return {
+        primary:
+          average === null
+            ? "—"
+            : formatPercent(average),
+        secondaryLabel: "الدرجات المسجلة",
+        secondary: formatNumber(
+          data.grades.length,
+        ),
+      };
+    }
 
     default:
-      return "—";
+      return {
+        primary: "—",
+        secondaryLabel: "قيمة ثانوية",
+        secondary: "—",
+      };
   }
 }
 
-function getReportTrend(
+function buildReportRows(
   type: ReportType,
-): string {
-  switch (type) {
-    case "students":
-      return "+8.4%";
-
-    case "attendance":
-      return "+3.2%";
-
-    case "payments":
-      return "+12.8%";
-
-    case "groups":
-      return "+2 مجموعة";
-
-    case "exams":
-      return "+4.1%";
-
-    default:
-      return "—";
-  }
-}
-
-function getReportRows(
-  type: ReportType,
+  data: ReportsData,
 ): ReportRow[] {
+  const absent = data.attendance.filter(
+    (record) => record.status === "absent",
+  ).length;
+
+  const late = data.attendance.filter(
+    (record) => record.status === "late",
+  ).length;
+
+  const collected = data.payments.reduce(
+    (total, payment) =>
+      total + payment.amount,
+    0,
+  );
+
+  const debts = data.students.reduce(
+    (total, student) =>
+      total + student.financial.remaining,
+    0,
+  );
+
+  const averagePayment =
+    data.payments.length === 0
+      ? 0
+      : Math.round(
+          collected /
+            data.payments.length,
+        );
+
+  const average = getAverageScore(
+    data.grades,
+    data.exams,
+  );
+
+  const passRate = getPassRate(
+    data.grades,
+    data.exams,
+  );
+
   switch (type) {
-    case "students":
+    case "students": {
+      const active = data.students.filter(
+        (student) =>
+          student.status === "active",
+      ).length;
+
+      const suspended = data.students.filter(
+        (student) =>
+          student.status === "suspended",
+      ).length;
+
+      const inactive = data.students.filter(
+        (student) =>
+          student.status === "inactive",
+      ).length;
+
       return [
         {
           label: "إجمالي الطلاب",
-          value: "1,248",
+          value: formatNumber(
+            data.students.length,
+          ),
         },
         {
           label: "الطلاب النشطون",
-          value: "1,186",
-        },
-        {
-          label: "طلاب جدد",
-          value: "84",
+          value: formatNumber(active),
         },
         {
           label: "طلاب متوقفون",
-          value: "62",
+          value: formatNumber(suspended),
+        },
+        {
+          label: "طلاب غير نشطين",
+          value: formatNumber(inactive),
         },
       ];
+    }
 
     case "attendance":
       return [
         {
           label: "نسبة الحضور",
-          value: "91.6%",
+          value: formatPercent(
+            getAttendanceRate(data.attendance),
+          ),
         },
         {
-          label: "الحضور",
-          value: "2,486",
+          label: "سجلات الحضور",
+          value: formatNumber(
+            data.attendance.length,
+          ),
         },
         {
           label: "الغياب",
-          value: "228",
+          value: formatNumber(absent),
         },
         {
           label: "التأخير",
-          value: "94",
+          value: formatNumber(late),
         },
       ];
 
@@ -818,61 +1202,286 @@ function getReportRows(
       return [
         {
           label: "إجمالي المحصل",
-          value: "184,500 ج.م",
+          value: formatMoney(collected),
         },
         {
-          label: "المدفوعات",
-          value: "426",
+          label: "عدد الدفعات",
+          value: formatNumber(
+            data.payments.length,
+          ),
         },
         {
-          label: "الديون",
-          value: "42,300 ج.م",
+          label: "إجمالي الديون",
+          value: formatMoney(debts),
         },
         {
           label: "متوسط الدفعة",
-          value: "433 ج.م",
+          value: formatMoney(
+            averagePayment,
+          ),
         },
       ];
 
-    case "groups":
+    case "groups": {
+      const activeGroups = data.groups.filter(
+        (group) => group.status === "active",
+      ).length;
+
       return [
         {
           label: "إجمالي المجموعات",
-          value: "36",
+          value: formatNumber(
+            data.groups.length,
+          ),
         },
         {
           label: "المجموعات النشطة",
-          value: "32",
+          value: formatNumber(
+            activeGroups,
+          ),
         },
         {
           label: "إجمالي الطلاب",
-          value: "1,248",
+          value: formatNumber(
+            data.students.length,
+          ),
         },
         {
-          label: "الحصص هذا الشهر",
-          value: "284",
+          label: "عدد الحصص",
+          value: formatNumber(
+            data.lessons.length,
+          ),
         },
       ];
+    }
 
     case "exams":
       return [
         {
-          label: "متوسط الدرجات",
-          value: "87.4%",
-        },
-        {
           label: "عدد الامتحانات",
-          value: "18",
+          value: formatNumber(
+            data.exams.length,
+          ),
         },
         {
-          label: "الطلاب المشاركون",
-          value: "1,086",
+          label: "الدرجات المسجلة",
+          value: formatNumber(
+            data.grades.length,
+          ),
+        },
+        {
+          label: "متوسط الأداء",
+          value:
+            average === null
+              ? "—"
+              : formatPercent(average),
         },
         {
           label: "نسبة النجاح",
-          value: "94.2%",
+          value:
+            passRate === null
+              ? "—"
+              : formatPercent(passRate),
         },
       ];
+
+    default:
+      return [];
+  }
+}
+
+function buildChartBars(
+  type: ReportType,
+  data: ReportsData,
+): ReportChartBar[] {
+  switch (type) {
+    case "students": {
+      const total = data.students.length || 1;
+
+      const active = data.students.filter(
+        (student) =>
+          student.status === "active",
+      ).length;
+
+      const suspended = data.students.filter(
+        (student) =>
+          student.status === "suspended",
+      ).length;
+
+      const inactive = data.students.filter(
+        (student) =>
+          student.status === "inactive",
+      ).length;
+
+      return [
+        {
+          label: "نشط",
+          value: Math.round(
+            (active / total) * 100,
+          ),
+        },
+        {
+          label: "متوقف",
+          value: Math.round(
+            (suspended / total) * 100,
+          ),
+        },
+        {
+          label: "غير نشط",
+          value: Math.round(
+            (inactive / total) * 100,
+          ),
+        },
+      ];
+    }
+
+    case "attendance": {
+      const byDay = new Map<
+        string,
+        { present: number; total: number }
+      >();
+
+      for (const record of data.attendance) {
+        if (!record.checkedInAt) {
+          continue;
+        }
+
+        if (
+          record.status !== "present" &&
+          record.status !== "late" &&
+          record.status !== "absent"
+        ) {
+          continue;
+        }
+
+        const day =
+          record.checkedInAt.slice(0, 10);
+        const bucket =
+          byDay.get(day) ?? {
+            present: 0,
+            total: 0,
+          };
+
+        bucket.total += 1;
+
+        if (
+          record.status === "present" ||
+          record.status === "late"
+        ) {
+          bucket.present += 1;
+        }
+
+        byDay.set(day, bucket);
+      }
+
+      const days = Array.from(byDay.entries());
+
+      return days
+        .sort((first, second) =>
+          first[0].localeCompare(second[0]),
+        )
+        .slice(-7)
+        .map(([day, bucket]) => ({
+          label: day.slice(5),
+          value: Math.round(
+            (bucket.present /
+              bucket.total) *
+              100,
+          ),
+        }));
+    }
+
+    case "payments": {
+      const largest = data.payments.reduce(
+        (max, payment) =>
+          Math.max(max, payment.amount),
+        0,
+      );
+
+      return data.payments.map(
+        (payment, index) => ({
+          label: `دفعة ${index + 1}`,
+          value:
+            largest === 0
+              ? 0
+              : Math.round(
+                  (payment.amount /
+                    largest) *
+                    100,
+                ),
+        }),
+      );
+    }
+
+    case "groups": {
+      const total = data.students.length || 1;
+      const buckets = new Map<
+        string,
+        number
+      >();
+
+      for (const student of data.students) {
+        const group =
+          student.groupId
+            ? data.groups.find(
+                (item) =>
+                  item.id ===
+                  student.groupId,
+              )
+            : undefined;
+
+        const label =
+          group?.name ?? "بدون مجموعة";
+
+        buckets.set(
+          label,
+          (buckets.get(label) ?? 0) + 1,
+        );
+      }
+
+      return Array.from(
+        buckets.entries(),
+      ).map(([label, count]) => ({
+        label,
+        value: Math.round(
+          (count / total) * 100,
+        ),
+      }));
+    }
+
+    case "exams":
+      return data.exams.map((exam) => {
+        const graded = data.grades.filter(
+          (grade) =>
+            grade.examId === exam.id &&
+            grade.score !== null,
+        );
+
+        if (
+          graded.length === 0 ||
+          exam.maxScore <= 0
+        ) {
+          return {
+            label: exam.subject,
+            value: 0,
+          };
+        }
+
+        const average =
+          graded.reduce(
+            (total, grade) =>
+              total +
+              ((grade.score ?? 0) /
+                exam.maxScore) *
+                100,
+            0,
+          ) / graded.length;
+
+        return {
+          label: exam.subject,
+          value: Math.round(average),
+        };
+      });
 
     default:
       return [];

@@ -122,14 +122,14 @@ const navigationItems: NavItem[] = [
   },
   {
     label: "الكروت",
-    href: "/students",
+    href: "/students/bulk-card-printing",
     icon: <FiPrinter size={18} />,
     module: "students",
     children: [
       {
-        label: "كروت الطلاب",
-        href: "/students",
-        icon: <FiUsers size={16} />,
+        label: "طباعة الكروت",
+        href: "/students/bulk-card-printing",
+        icon: <FiPrinter size={16} />,
         module: "students",
       },
     ],

@@ -19,7 +19,6 @@ import {
   FiHome,
   FiUser,
   FiUsers,
-  FiXCircle,
 } from "react-icons/fi";
 
 import { attendanceService } from "@/services/attendanceService";
@@ -53,26 +52,6 @@ type ParentTab =
 type LoadingState = {
   student: boolean;
   related: boolean;
-};
-
-const formatDate = (
-  value?: string | null,
-) => {
-  if (!value) {
-    return "غير متوفر";
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("ar-EG", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(parsed);
 };
 
 const formatShortDate = (

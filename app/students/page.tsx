@@ -6,12 +6,14 @@ import {
   useState,
 } from "react";
 
+import Link from "next/link";
+
 import {
   FiChevronDown,
   FiEdit2,
   FiEye,
-  FiMoreHorizontal,
   FiPlus,
+  FiPrinter,
   FiSearch,
   FiUsers,
 } from "react-icons/fi";
@@ -86,6 +88,8 @@ export default function StudentsPage() {
 
   const [detailsOpen, setDetailsOpen] =
     useState(false);
+
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let mounted = true;
@@ -206,6 +210,40 @@ export default function StudentsPage() {
       status,
       group,
     ]);
+
+  const pageSize = 8;
+
+  const pageCount = useMemo(
+    () =>
+      Math.max(
+        1,
+        Math.ceil(
+          filteredStudents.length /
+            pageSize,
+        ),
+      ),
+    [filteredStudents],
+  );
+
+  const visibleStudents = useMemo(
+    () =>
+      filteredStudents.slice(
+        (page - 1) * pageSize,
+        page * pageSize,
+      ),
+    [filteredStudents, page],
+  );
+
+  const firstVisibleIndex =
+    filteredStudents.length === 0
+      ? 0
+      : (page - 1) * pageSize + 1;
+
+  const lastVisibleIndex =
+    Math.min(
+      page * pageSize,
+      filteredStudents.length,
+    );
 
   const handleAddStudent = async (
     data: StudentFormData,
@@ -355,6 +393,7 @@ export default function StudentsPage() {
     setSearch("");
     setStatus("الكل");
     setGroup("الكل");
+    setPage(1);
   };
 
   return (
@@ -382,16 +421,26 @@ export default function StudentsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              setAddModalOpen(true)
-            }
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98]"
-          >
-            <FiPlus size={17} />
-            إضافة طالب
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/students/bulk-card-printing"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 active:scale-[0.98]"
+            >
+              <FiPrinter size={17} />
+              طباعة الكروت
+            </Link>
+
+            <button
+              type="button"
+              onClick={() =>
+                setAddModalOpen(true)
+              }
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98]"
+            >
+              <FiPlus size={17} />
+              إضافة طالب
+            </button>
+          </div>
         </section>
 
         <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -441,11 +490,13 @@ export default function StudentsPage() {
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setSearch(
                       event.target.value,
-                    )
-                  }
+                    );
+
+                    setPage(1);
+                  }}
                   placeholder="ابحث باسم الطالب أو رقم الطالب أو الهاتف أو ولي الأمر..."
                   aria-label="البحث عن طالب"
                   className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pr-9 pl-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
@@ -454,13 +505,15 @@ export default function StudentsPage() {
 
               <FilterSelect
                 value={status}
-                onChange={(value) =>
+                onChange={(value) => {
                   setStatus(
                     value as
                       | "الكل"
                       | StudentStatus,
-                  )
-                }
+                  );
+
+                  setPage(1);
+                }}
                 ariaLabel="فلترة حسب الحالة"
               >
                 <option value="الكل">
@@ -482,7 +535,11 @@ export default function StudentsPage() {
 
               <FilterSelect
                 value={group}
-                onChange={setGroup}
+                onChange={(value) => {
+                  setGroup(value);
+
+                  setPage(1);
+                }}
                 ariaLabel="فلترة حسب المجموعة"
               >
                 {groups.map(
@@ -577,7 +634,7 @@ export default function StudentsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map(
+                  visibleStudents.map(
                     (student) => (
                       <tr
                         key={
@@ -705,9 +762,10 @@ export default function StudentsPage() {
                             </ActionButton>
 
                             <ActionButton
-                              label={`المزيد عن ${student.name}`}
+                              href={`/students/${student.id}/card-designer`}
+                              label={`تصميم كارت ${student.name}`}
                             >
-                              <FiMoreHorizontal
+                              <FiPrinter
                                 size={16}
                               />
                             </ActionButton>
@@ -755,34 +813,80 @@ export default function StudentsPage() {
             <p className="text-xs text-slate-400">
               عرض{" "}
               <span className="font-semibold text-slate-600">
-                {
-                  filteredStudents.length
-                }
+                {filteredStudents.length === 0
+                  ? 0
+                  : firstVisibleIndex.toLocaleString(
+                      "ar-EG",
+                    )}
+              </span>
+              {" - "}
+              <span className="font-semibold text-slate-600">
+                {lastVisibleIndex.toLocaleString(
+                  "ar-EG",
+                )}
               </span>{" "}
               من أصل{" "}
               <span className="font-semibold text-slate-600">
-                {students.length}
+                {filteredStudents.length.toLocaleString(
+                  "ar-EG",
+                )}
               </span>{" "}
-              طلاب
+              طالب
             </p>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled
-                className="h-8 rounded-md border border-slate-200 px-3 text-xs font-medium text-slate-300"
+                onClick={() =>
+                  setPage((current) =>
+                    Math.max(1, current - 1),
+                  )
+                }
+                disabled={page === 1}
+                className="h-8 rounded-md border border-slate-200 px-3 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
               >
                 السابق
               </button>
 
-              <span className="flex h-8 min-w-8 items-center justify-center rounded-md bg-teal-600 px-2 text-xs font-semibold text-white">
-                1
-              </span>
+              {Array.from(
+                { length: pageCount },
+                (_, index) => index + 1,
+              ).map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() =>
+                    setPage(pageNumber)
+                  }
+                  aria-current={
+                    pageNumber === page
+                      ? "page"
+                      : undefined
+                  }
+                  className={`h-8 min-w-8 rounded-md px-2 text-xs font-semibold transition ${
+                    pageNumber === page
+                      ? "bg-teal-600 text-white"
+                      : "border border-slate-200 text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  {pageNumber.toLocaleString(
+                    "ar-EG",
+                  )}
+                </button>
+              ))}
 
               <button
                 type="button"
-                disabled
-                className="h-8 rounded-md border border-slate-200 px-3 text-xs font-medium text-slate-300"
+                onClick={() =>
+                  setPage((current) =>
+                    Math.min(
+                      pageCount,
+                      current + 1,
+                    ),
+                  )
+                }
+                disabled={page === pageCount}
+                className="h-8 rounded-md border border-slate-200 px-3 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
               >
                 التالي
               </button>
@@ -938,17 +1042,34 @@ function ActionButton({
   children,
   label,
   onClick,
+  href,
 }: {
   children: React.ReactNode;
   label: string;
   onClick?: () => void;
+  href?: string;
 }) {
+  const className =
+    "flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-teal-50 hover:text-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20";
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-label={label}
+        className={className}
+      >
+        {children}
+      </Link>
+    );
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-teal-50 hover:text-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+      className={className}
     >
       {children}
     </button>

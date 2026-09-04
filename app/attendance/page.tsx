@@ -6,6 +6,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
+import Image from "next/image";
+
 import {
   FiAlertCircle,
   FiCalendar,
@@ -927,9 +930,12 @@ export default function AttendancePage() {
 
                 <div className="mx-auto mt-4 flex h-36 w-36 items-center justify-center rounded-xl border-2 border-slate-200 bg-white">
                   {qrCodeUrl ? (
-                    <img 
-                      src={qrCodeUrl} 
-                      alt="رمز الحضور" 
+                    <Image
+                      src={qrCodeUrl}
+                      alt="رمز الحضور"
+                      width={144}
+                      height={144}
+                      unoptimized
                       className="h-full w-full rounded-lg"
                     />
                   ) : (

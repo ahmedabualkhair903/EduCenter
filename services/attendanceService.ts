@@ -7,6 +7,8 @@ import type {
   SuspiciousAttendanceCase,
 } from "@/types";
 
+import { studentCardService } from "./studentCardService";
+
 import { studentService } from "./studentService";
 
 import {
@@ -102,8 +104,11 @@ const isSameDay = (
 
 const findStudentByScannerCode =
   async (code: string) => {
-    const students =
-      await studentService.list();
+    const [students, cards] =
+      await Promise.all([
+        studentService.list(),
+        studentCardService.list(),
+      ]);
 
     const normalizedCode =
       normalizeScannerCode(code);
@@ -112,14 +117,35 @@ const findStudentByScannerCode =
       return null;
     }
 
-    return (
+    const directMatch =
       students.find(
         (student) =>
           student.studentId ===
             normalizedCode ||
           student.id === normalizedCode,
-      ) ?? null
+      ) ?? null;
+
+    if (directMatch) {
+      return directMatch;
+    }
+
+    const cardMatch = cards.find(
+      (card) =>
+        card.attendanceCode ===
+        normalizedCode,
     );
+
+    if (cardMatch) {
+      return (
+        students.find(
+          (student) =>
+            student.id ===
+            cardMatch.studentId,
+        ) ?? null
+      );
+    }
+
+    return null;
   };
 
 const registerStudentAttendance =

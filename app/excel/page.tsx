@@ -23,7 +23,7 @@ import {
   FiX,
 } from "react-icons/fi";
 
-import { readExcelFile, writeExcelFile, writeCsvFile, generateTemplate } from "@/lib/excel";
+import { readExcelFile, writeExcelFile, generateTemplate } from "@/lib/excel";
 import { studentService } from "@/services";
 
 type ImportType = "students" | "grades";
@@ -281,7 +281,6 @@ export default function ExcelPage() {
           
           if (importType === "students") {
             const studentId = values[1]?.trim();
-            const studentName = values[0]?.trim();
             
             // Try to find student by ID
             const existingStudents = await studentService.list();

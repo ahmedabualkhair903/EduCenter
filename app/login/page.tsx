@@ -3,6 +3,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import {
   FiArrowLeft,
   FiEye,
@@ -13,6 +14,26 @@ import {
 import { LuGraduationCap } from "react-icons/lu";
 
 import { login } from "@/lib/auth";
+
+const getRedirectPath = (): string => {
+  const params = new URLSearchParams(
+    window.location.search,
+  );
+
+  const redirect =
+    params.get("redirect") ??
+    "/dashboard";
+
+  if (
+    !redirect.startsWith("/") ||
+    redirect.startsWith("//") ||
+    redirect.includes(":")
+  ) {
+    return "/dashboard";
+  }
+
+  return redirect;
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,7 +65,7 @@ export default function LoginPage() {
       login(email, password);
 
       setTimeout(() => {
-        router.replace("/dashboard");
+        router.replace(getRedirectPath());
       }, 300);
     } catch {
       setLoading(false);
@@ -176,20 +197,13 @@ export default function LoginPage() {
 
               {/* Password */}
               <div>
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2">
                   <label
                     htmlFor="password"
                     className="text-sm font-semibold text-slate-700"
                   >
                     كلمة المرور
                   </label>
-
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-teal-600 transition hover:text-teal-700"
-                  >
-                    نسيت كلمة المرور؟
-                  </button>
                 </div>
 
                 <div className="relative">

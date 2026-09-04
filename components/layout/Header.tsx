@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
 FiBell,
 FiChevronLeft,
@@ -87,6 +88,24 @@ label: "التقارير",
 description: "تقارير وإحصائيات المركز",
 href: "/reports",
 keywords: "تقارير reports احصائيات",
+},
+{
+label: "تسجيل الطلاب",
+description: "صفحة تسجيل طالب جديد",
+href: "/",
+keywords: "تسجيل طالب جديد home تسجيل الطلاب",
+},
+{
+label: "ماسح الحضور",
+description: "تسجيل الحضور بالماسح الضوئي",
+href: "/attendance-scanner",
+keywords: "سكانر ماسح باركود scanner",
+},
+{
+label: "طباعة الكروت",
+description: "طباعة كروت الطلاب",
+href: "/students/bulk-card-printing",
+keywords: "كروت طباعة كارت cards printing",
 },
 {
 label: "الإعدادات",
@@ -184,18 +203,14 @@ return (
         </button>
 
         {/* Notifications */}
-        <button
-          type="button"
+        <Link
+          href="/messages"
           className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
-          aria-label="الإشعارات"
+          aria-label="الرسائل و التواصلات"
+          title="الرسائل"
         >
           <FiBell size={18} />
-
-          <span
-            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-teal-500 ring-2 ring-white"
-            aria-hidden="true"
-          />
-        </button>
+        </Link>
 
         <div className="mx-1 hidden h-7 w-px bg-slate-200 sm:block" />
 

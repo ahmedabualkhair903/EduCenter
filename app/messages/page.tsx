@@ -15,7 +15,6 @@ import {
   FiEdit2,
   FiFileText,
   FiMessageCircle,
-  FiMoreVertical,
   FiPlus,
   FiSearch,
   FiSend,
@@ -674,15 +673,6 @@ export default function MessagesPage() {
                             aria-label={`حذف ${message.title}`}
                           >
                             <FiX size={16} />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                            title="المزيد"
-                            aria-label="المزيد من الإجراءات"
-                          >
-                            <FiMoreVertical size={16} />
                           </button>
                         </div>
                       </td>

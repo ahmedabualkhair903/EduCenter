@@ -62,6 +62,8 @@ export default function Home() {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] =
+    useState("");
   const [showStudentModal, setShowStudentModal] =
     useState(false);
   const [successStudent, setSuccessStudent] =
@@ -94,7 +96,7 @@ export default function Home() {
   }, []);
 
   const filteredStudents = useMemo(() => {
-    const normalizedSearch = search
+    const normalizedSearch = debouncedSearch
       .trim()
       .toLowerCase();
 
@@ -117,7 +119,17 @@ export default function Home() {
         );
       })
       .slice(0, 6);
-  }, [search, students]);
+  }, [debouncedSearch, students]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 250);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [search]);
 
   const handleCreateStudent = async (
     form: StudentFormData,

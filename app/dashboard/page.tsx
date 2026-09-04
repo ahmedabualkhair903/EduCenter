@@ -13,7 +13,7 @@ import {
   FiClock,
   FiDollarSign,
   FiMessageCircle,
-  FiMoreHorizontal,
+  FiRefreshCw,
   FiTrendingUp,
   FiUsers,
 } from "react-icons/fi";
@@ -21,7 +21,7 @@ import {
 import {
   attendanceService,
   examService,
-  groupService,
+  lessonService,
   messageService,
   paymentService,
   studentService,
@@ -40,6 +40,13 @@ type ClassItem = {
   group: string;
   time: string;
   status: "جارية" | "قادمة";
+};
+
+type WeekDayAttendance = {
+  day: string;
+  present: number;
+  absent: number;
+  hasData: boolean;
 };
 
 const stats: Stat[] = [
@@ -97,43 +104,6 @@ const stats: Stat[] = [
   },
 ];
 
-const attendanceData = [
-  { day: "السبت", present: 88, absent: 12 },
-  { day: "الأحد", present: 91, absent: 9 },
-  { day: "الإثنين", present: 86, absent: 14 },
-  { day: "الثلاثاء", present: 89, absent: 11 },
-  { day: "الأربعاء", present: 93, absent: 7 },
-  { day: "الخميس", present: 87, absent: 13 },
-  { day: "الجمعة", present: 95, absent: 5 },
-];
-
-const todayClasses: ClassItem[] = [
-  {
-    subject: "الرياضيات",
-    group: "أولى ثانوي",
-    time: "04:00 م",
-    status: "جارية",
-  },
-  {
-    subject: "اللغة الإنجليزية",
-    group: "ثانية ثانوي",
-    time: "05:30 م",
-    status: "قادمة",
-  },
-  {
-    subject: "الفيزياء",
-    group: "ثالثة ثانوي",
-    time: "07:00 م",
-    status: "قادمة",
-  },
-  {
-    subject: "الكيمياء",
-    group: "ثالثة ثانوي",
-    time: "08:30 م",
-    status: "قادمة",
-  },
-];
-
 const quickActions = [
   {
     label: "إضافة طالب",
@@ -166,6 +136,42 @@ const todayKey = new Date().toISOString().slice(0, 10);
 const formatMoney = (amount: number): string =>
   `${amount.toLocaleString("en-US")} ج.م`;
 
+const weekdayArabic = (date: Date): string =>
+  [
+    "الأحد",
+    "الإثنين",
+    "الثلاثاء",
+    "الأربعاء",
+    "الخميس",
+    "الجمعة",
+    "السبت",
+  ][date.getDay()];
+
+const formatTime = (time: string): string => {
+  const [hoursRaw, minutesRaw] = time
+    .split(":")
+    .map(Number);
+
+  const hours = hoursRaw ?? 0;
+  const minutes = minutesRaw ?? 0;
+  const suffix = hours >= 12 ? "م" : "ص";
+  const display =
+    hours % 12 === 0 ? 12 : hours % 12;
+
+  return `${display
+    .toString()
+    .padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")} ${suffix}`;
+};
+
+const isMarked = (
+  status: string,
+): boolean =>
+  status === "present" ||
+  status === "late" ||
+  status === "absent";
+
 export default function DashboardPage() {
   const [studentsCount, setStudentsCount] = useState(0);
   const [todayPresent, setTodayPresent] = useState(0);
@@ -173,7 +179,10 @@ export default function DashboardPage() {
   const [collectedToday, setCollectedToday] = useState(0);
   const [examsCount, setExamsCount] = useState(0);
   const [messagesCount, setMessagesCount] = useState(0);
-  const [lessonSlots, setLessonSlots] = useState(0);
+  const [todayLessonCount, setTodayLessonCount] = useState(0);
+  const [classItems, setClassItems] = useState<ClassItem[]>([]);
+  const [weekAttendance, setWeekAttendance] = useState<WeekDayAttendance[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -186,14 +195,14 @@ export default function DashboardPage() {
           payments,
           exams,
           messages,
-          groups,
+          lessons,
         ] = await Promise.all([
           studentService.list(),
           attendanceService.list(),
           paymentService.list(),
           examService.list(),
           messageService.list(),
-          groupService.list(),
+          lessonService.list(),
         ]);
 
         if (!mounted) {
@@ -244,15 +253,110 @@ export default function DashboardPage() {
 
         setMessagesCount(messages.length);
 
-        setLessonSlots(
-          new Set(
-            groups.flatMap((group) =>
-              group.schedule.map(
-                (slot) => slot.startTime,
-              ),
-            ),
-          ).size,
+        const upcomingLessons = lessons
+          .filter(
+            (lesson) =>
+              lesson.date > todayKey &&
+              lesson.status !== "cancelled",
+          )
+          .sort(
+            (first, second) =>
+              first.date.localeCompare(second.date) ||
+              first.time.localeCompare(second.time),
+          );
+
+        const todayLessons = lessons
+          .filter(
+            (lesson) =>
+              lesson.date === todayKey &&
+              lesson.status !== "cancelled",
+          )
+          .sort((first, second) =>
+            first.time.localeCompare(second.time),
+          );
+
+        setTodayLessonCount(todayLessons.length);
+
+        const shownLessons =
+          todayLessons.length > 0
+            ? todayLessons
+            : upcomingLessons.slice(0, 4);
+
+        setClassItems(
+          shownLessons.map((lesson) => ({
+            subject: lesson.subject,
+            group: lesson.group,
+            time: formatTime(lesson.time),
+            status:
+              lesson.status === "ongoing"
+                ? "جارية"
+                : "قادمة",
+          })),
         );
+
+        const weekDays: WeekDayAttendance[] = [];
+
+        for (
+          let offset = 6;
+          offset >= 0;
+          offset -= 1
+        ) {
+          const date = new Date();
+          date.setDate(date.getDate() - offset);
+          const dayKey = date
+            .toISOString()
+            .slice(0, 10);
+
+          const marked = attendance.filter(
+            (record) => {
+              const recordDay =
+                record.checkedInAt?.slice(0, 10) ??
+                record.checkedOutAt?.slice(0, 10) ??
+                todayKey;
+
+              return (
+                recordDay === dayKey &&
+                isMarked(record.status)
+              );
+            },
+          );
+
+          const presentCount = marked.filter(
+            (record) =>
+              record.status === "present" ||
+              record.status === "late",
+          ).length;
+
+          const absentCount = marked.filter(
+            (record) =>
+              record.status === "absent",
+          ).length;
+
+          const present =
+            marked.length === 0
+              ? 0
+              : Math.round(
+                  (presentCount /
+                    marked.length) *
+                    100,
+                );
+
+          weekDays.push({
+            day: weekdayArabic(date),
+            present,
+            absent:
+              marked.length === 0
+                ? 0
+                : Math.round(
+                    (absentCount /
+                      marked.length) *
+                      100,
+                  ),
+            hasData: marked.length > 0,
+          });
+        }
+
+        setWeekAttendance(weekDays);
       } catch {
         // Keep the zeros; the fixed layout still renders.
       }
@@ -263,7 +367,11 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const handleRefreshToday = () => {
+    setReloadKey((current) => current + 1);
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -288,10 +396,12 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleRefreshToday}
+              aria-label="تحديث بيانات اليوم"
               className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
             >
-              <FiCalendar size={15} />
-              اليوم
+              <FiRefreshCw size={15} />
+              تحديث
             </button>
           </div>
         </section>
@@ -310,7 +420,7 @@ export default function DashboardPage() {
                   : stat.title === "الغياب اليوم"
                     ? todayAbsent.toLocaleString("en-US")
                     : stat.title === "حصص اليوم"
-                      ? lessonSlots.toLocaleString("en-US")
+                      ? todayLessonCount.toLocaleString("en-US")
                       : stat.title === "المحصل اليوم"
                         ? formatMoney(collectedToday)
                         : stat.title ===
@@ -384,17 +494,9 @@ export default function DashboardPage() {
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  نسبة الحضور والغياب خلال الأسبوع الحالي
+                  نسبة الحضور والغياب خلال آخر 7 أيام
                 </p>
               </div>
-
-              <button
-                type="button"
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-500 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
-              >
-                هذا الأسبوع
-                <FiMoreHorizontal size={14} />
-              </button>
             </div>
 
             <div className="mb-5 flex items-center gap-5">
@@ -430,18 +532,26 @@ export default function DashboardPage() {
               </div>
 
               <div className="absolute inset-x-10 bottom-0 top-0 flex items-end justify-between gap-2">
-                {attendanceData.map((item) => (
+                {weekAttendance.map((item) => (
                   <div
                     key={item.day}
                     className="flex h-full flex-1 flex-col items-center justify-end gap-2"
                   >
                     <div className="flex h-[calc(100%-24px)] w-full max-w-10 items-end overflow-hidden rounded-t-md bg-slate-100">
                       <div
-                        className="w-full rounded-t-md bg-teal-500 transition-all duration-500 hover:bg-teal-600"
+                        className={`w-full rounded-t-md transition-all duration-500 ${
+                          item.hasData
+                            ? "bg-teal-500 hover:bg-teal-600"
+                            : "bg-transparent"
+                        }`}
                         style={{
                           height: `${item.present}%`,
                         }}
-                        title={`حضور ${item.present}%`}
+                        title={
+                          item.hasData
+                            ? `حضور ${item.present}%`
+                            : "لا توجد سجلات"
+                        }
                       />
                     </div>
 
@@ -469,49 +579,72 @@ export default function DashboardPage() {
               </div>
 
               <span className="rounded-full bg-teal-50 px-2 py-1 text-[10px] font-semibold text-teal-600">
-                24 حصة
+                {todayLessonCount > 0
+                  ? `${todayLessonCount.toLocaleString(
+                      "en-US",
+                    )} حصة`
+                  : classItems.length > 0
+                    ? `${classItems.length.toLocaleString(
+                        "en-US",
+                      )} حصة قادمة`
+                    : "لا توجد حصص"}
               </span>
             </div>
 
-            <div className="space-y-3">
-              {todayClasses.map((item) => (
-                <div
-                  key={`${item.subject}-${item.time}`}
-                  className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-teal-100 hover:bg-teal-50/40"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-teal-100 group-hover:text-teal-600">
-                    <FiBookOpen size={16} />
+            {classItems.length === 0 ? (
+              <div className="flex min-h-44 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 text-center">
+                <FiCalendar size={20} className="text-slate-400" />
+
+                <p className="mt-3 text-xs font-bold text-slate-600">
+                  لا توجد حصص مسجلة لليوم
+                </p>
+
+                <p className="mt-1 text-[10px] leading-5 text-slate-400">
+                  أضف حصصًا من صفحة جدول الحصص وسيتم
+                  عرضها هنا تلقائيًا.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {classItems.map((item) => (
+                  <div
+                    key={`${item.subject}-${item.group}-${item.time}`}
+                    className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-teal-100 hover:bg-teal-50/40"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-teal-100 group-hover:text-teal-600">
+                      <FiBookOpen size={16} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-bold text-slate-800">
+                        {item.subject}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                        {item.group}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-left">
+                      <p className="text-[10px] font-semibold text-slate-600">
+                        {item.time}
+                      </p>
+
+                      <span
+                        className={[
+                          "mt-1 inline-flex rounded-full px-1.5 py-0.5 text-[8px] font-semibold",
+                          item.status === "جارية"
+                            ? "bg-emerald-50 text-emerald-600"
+                            : "bg-slate-100 text-slate-400",
+                        ].join(" ")}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold text-slate-800">
-                      {item.subject}
-                    </p>
-
-                    <p className="mt-0.5 truncate text-[10px] text-slate-400">
-                      {item.group}
-                    </p>
-                  </div>
-
-                  <div className="shrink-0 text-left">
-                    <p className="text-[10px] font-semibold text-slate-600">
-                      {item.time}
-                    </p>
-
-                    <span
-                      className={[
-                        "mt-1 inline-flex rounded-full px-1.5 py-0.5 text-[8px] font-semibold",
-                        item.status === "جارية"
-                          ? "bg-emerald-50 text-emerald-600"
-                          : "bg-slate-100 text-slate-400",
-                      ].join(" ")}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <Link
               href="/lessons"

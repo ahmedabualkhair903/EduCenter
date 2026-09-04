@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react";
 
+import Image from "next/image";
+
 import {
   FiArrowRight,
   FiCheck,
@@ -17,10 +19,12 @@ import {
   FiRefreshCw,
   FiSearch,
   FiUsers,
-  FiX,
 } from "react-icons/fi";
 
+import { generateQRCode } from "@/lib/qr";
+
 import { groupService } from "@/services/groupService";
+import { studentCardService } from "@/services/studentCardService";
 import { studentService } from "@/services/studentService";
 
 import type { Group, Student } from "@/types";
@@ -37,6 +41,8 @@ type GeneratedCard = {
   student: Student;
   groupName: string;
   teacherName: string;
+  attendanceCode: string;
+  parentQrValue: string;
 };
 
 const selectionModes: Array<{
@@ -329,27 +335,54 @@ export default function BulkCardPrintingPage() {
     }
   };
 
-  const buildGeneratedCards = (
+  const buildGeneratedCards = async (
     selected: Student[],
-  ): GeneratedCard[] => {
-    return selected.map((student) => {
-      const group = student.groupId
-        ? groupMap.get(student.groupId)
-        : undefined;
+  ): Promise<GeneratedCard[]> => {
+    return Promise.all(
+      selected.map(async (student) => {
+        const group = student.groupId
+          ? groupMap.get(student.groupId)
+          : undefined;
 
-      return {
-        student,
-        groupName:
-          group?.name ??
-          "غير محددة",
-        teacherName:
-          group?.teacher ??
-          "غير محدد",
-      };
-    });
+        const fallbackCode = `SN:${student.id}`;
+        const fallbackQr = `/parent-portal/${student.id}`;
+
+        let attendanceCode = fallbackCode;
+        let parentQrValue = fallbackQr;
+
+        try {
+          const studentCard =
+            await studentCardService.getStudentCard(
+              student.id,
+            );
+
+          attendanceCode =
+            studentCard.attendanceCode ??
+            fallbackCode;
+          parentQrValue =
+            studentCard.parentQrValue ??
+            fallbackQr;
+        } catch {
+          // Keep the offline fallback values when the
+          // card registry is temporarily unavailable.
+        }
+
+        return {
+          student,
+          groupName:
+            group?.name ??
+            "غير محددة",
+          teacherName:
+            group?.teacher ??
+            "غير محدد",
+          attendanceCode,
+          parentQrValue,
+        };
+      }),
+    );
   };
 
-  const handleGenerateCards = () => {
+  const handleGenerateCards = async () => {
     setError("");
 
     const selected = getSelectedStudents();
@@ -363,9 +396,10 @@ export default function BulkCardPrintingPage() {
       return;
     }
 
-    setGeneratedCards(
-      buildGeneratedCards(selected),
-    );
+    const cards =
+      await buildGeneratedCards(selected);
+
+    setGeneratedCards(cards);
 
     setIsGenerated(true);
   };
@@ -1232,9 +1266,10 @@ function BulkPreview({
         <strong>ملاحظة:</strong>{" "}
         زر «تصدير PDF» يستخدم نافذة الطباعة
         الخاصة بالمتصفح، ومنها يمكنك اختيار
-        «Save as PDF / حفظ كـ PDF». لا يتم إنشاء
-        ملف PDF مزيف أو توليد أي Token أمني على
-        الواجهة الأمامية.
+        «Save as PDF / حفظ كـ PDF». يُنشئ الكارت
+        كود الحضور الخاص بالطالب ورمز بوابة ولي
+        الأمر محليًا (Offline) ويتم حفظهما على
+        الجهاز لاستمرار عمل القارئ الإلكتروني.
       </div>
     </section>
   );
@@ -1324,20 +1359,20 @@ function BulkStudentCard({
               </p>
 
               <p className="mt-1 text-sm font-bold tracking-wider text-slate-800">
-                {student.studentId}
+                {card.attendanceCode}
               </p>
             </div>
           </div>
 
           <div className="flex w-24 shrink-0 flex-col items-center justify-center">
             <div className="flex aspect-square w-full items-center justify-center rounded-xl border-2 border-slate-200 bg-white p-2">
-              <PseudoQrCode value={student.studentId} />
+              <CardQrCode value={card.parentQrValue} />
             </div>
 
             <p className="mt-2 text-center text-[8px] font-medium leading-4 text-slate-400">
-              Attendance
+              بوابة ولي
               <br />
-              Student Code
+              الأمر
             </p>
           </div>
         </div>
@@ -1366,51 +1401,53 @@ function CardInfo({
   );
 }
 
-function PseudoQrCode({
+function CardQrCode({
   value,
 }: {
   value: string;
 }) {
-  const pattern = useMemo(() => {
-    let seed = 0;
+  const [qrUrl, setQrUrl] =
+    useState<string>("");
 
-    for (let index = 0; index < value.length; index += 1) {
-      seed =
-        (seed * 31 +
-          value.charCodeAt(index)) %
-        2147483647;
-    }
+  useEffect(() => {
+    let mounted = true;
 
-    return Array.from(
-      { length: 81 },
-      (_, index) => {
-        const next =
-          (seed +
-            index * 17 +
-            index * index * 7) %
-          101;
+    generateQRCode(value, {
+      width: 180,
+      margin: 1,
+    })
+      .then((url) => {
+        if (mounted) {
+          setQrUrl(url);
+        }
+      })
+      .catch(() => {
+        // keep an empty placeholder on error
+      });
 
-        return next > 46;
-      },
-    );
+    return () => {
+      mounted = false;
+    };
   }, [value]);
 
+  if (!qrUrl) {
+    return (
+      <div
+        className="aspect-square w-full bg-white"
+        aria-label="جارٍ إنشاء الكود"
+      />
+    );
+  }
+
   return (
-    <div
-      className="grid aspect-square w-full grid-cols-9 bg-white"
-      aria-label="معاينة رمز الكارت"
-    >
-      {pattern.map((active, index) => (
-        <span
-          key={index}
-          className={
-            active
-              ? "bg-slate-900"
-              : "bg-white"
-          }
-        />
-      ))}
-    </div>
+    <Image
+      src={qrUrl}
+      alt="رمز بطاقة ولي الأمر"
+      width={180}
+      height={180}
+      unoptimized
+      className="h-auto w-full"
+    />
   );
 }
 

@@ -10,6 +10,8 @@ import {
   type PointerEvent,
 } from "react";
 
+import Image from "next/image";
+
 import {
   FiAlignCenter,
   FiAlignLeft,
@@ -1898,7 +1900,7 @@ export default function StudentCardDesigner({
                   value={
                     studentCard?.parentQrValue
                       ? "متاح"
-                      : "بانتظار Backend"
+                      : "غير متاح"
                   }
                   positive={Boolean(
                     studentCard?.parentQrValue,
@@ -1913,7 +1915,10 @@ export default function StudentCardDesigner({
               </p>
 
               <p className="mt-2 text-[11px] leading-6 text-slate-300">
-                التصميم والقوالب يحفظان إعدادات المواضع والتنسيق فقط. لا يتم إنشاء أي Security Token أو Attendance Code أو Parent QR Value من الواجهة الأمامية.
+                يتم توليد كود الحضور وقيمة رمز بوابة ولي
+                الأمر محليًا (Offline) وحفظهما على الجهاز،
+                ويظل التصميم قابلاً للاستبدال بواجهة
+                Backend عند الاتصال لاحقًا.
               </p>
             </div>
           </aside>
@@ -2242,10 +2247,13 @@ function renderElementContent(
     case "qr":
       return qrCodeUrl ? (
         <div className="flex h-full items-center justify-center rounded-xl bg-white">
-          <img
+          <Image
             src={qrCodeUrl}
             alt="Parent QR"
-            className="h-full max-h-full w-auto max-w-full object-contain"
+            width={280}
+            height={280}
+            unoptimized
+            className="h-full w-full object-contain"
             draggable={false}
           />
         </div>
