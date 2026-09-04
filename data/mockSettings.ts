@@ -1,3 +1,4 @@
+
 import type { AppSettings } from "@/types/settings";
 
 import { DEFAULT_MODULES } from "@/config/modules";
@@ -31,5 +32,14 @@ export const mockSettings: AppSettings = {
   },
 
   paymentsEnabled: true,
+
   reportsEnabled: false,
+
+  parentPortal: {
+    enabled: false,
+    syncMode: "manual",
+    lastSync: null,
+    syncStatus: "idle",
+    pendingSync: 0,
+  },
 };

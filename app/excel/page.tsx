@@ -4,6 +4,7 @@ import {
   type ChangeEvent,
   type DragEvent,
   type ReactNode,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +22,9 @@ import {
   FiUsers,
   FiX,
 } from "react-icons/fi";
+
+import { readExcelFile, writeExcelFile, writeCsvFile, generateTemplate } from "@/lib/excel";
+import { studentService } from "@/services";
 
 type ImportType = "students" | "grades";
 
@@ -169,14 +173,41 @@ export default function ExcelPage() {
   const [exportLoading, setExportLoading] =
     useState(false);
 
+  const [allStudents, setAllStudents] = useState<StudentExport[]>(initialStudents);
+
+  // Load actual students on mount
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadStudents = async () => {
+      try {
+        const students = await studentService.list();
+        if (mounted) {
+          setAllStudents(students.map(s => ({
+            id: s.id,
+            studentId: s.studentId,
+            name: s.name,
+            phone: s.phone || "",
+            guardianPhone: s.guardianPhone,
+          })));
+        }
+      } catch (error) {
+        console.error("Failed to load students:", error);
+      }
+    };
+    
+    loadStudents();
+    return () => { mounted = false; };
+  }, []);
+
   const filteredStudents = useMemo(() => {
     const query = studentSearch.trim().toLowerCase();
 
     if (!query) {
-      return initialStudents;
+      return allStudents;
     }
 
-    return initialStudents.filter((student) =>
+    return allStudents.filter((student) =>
       [
         student.name,
         student.studentId,
@@ -185,7 +216,7 @@ export default function ExcelPage() {
         value.toLowerCase().includes(query),
       ),
     );
-  }, [studentSearch]);
+  }, [studentSearch, allStudents]);
 
   const handleFile = (file?: File) => {
     if (!file) {
@@ -231,7 +262,7 @@ export default function ExcelPage() {
     handleFile(event.dataTransfer.files?.[0]);
   };
 
-  const createPreview = () => {
+  const createPreview = async () => {
     if (!selectedFile) {
       setError("اختر ملف Excel أولًا.");
       return;
@@ -241,106 +272,101 @@ export default function ExcelPage() {
     setIsPreviewLoading(true);
     setShowPreview(false);
 
-    window.setTimeout(() => {
-      const rows: PreviewRow[] =
-        importType === "students"
-          ? [
-              {
-                id: "1",
-                values: [
-                  "أحمد محمد علي",
-                  "ST-1001",
-                  "01012345678",
-                  "01112345678",
-                ],
-                status: "recognized",
-              },
-              {
-                id: "2",
-                values: [
-                  "محمد أحمد حسن",
-                  "ST-1002",
-                  "01023456789",
-                  "01123456789",
-                ],
-                status: "recognized",
-              },
-              {
-                id: "3",
-                values: [
-                  "طالب غير موجود",
-                  "ST-9999",
-                  "01000000000",
-                  "01100000000",
-                ],
-                status: "unknown",
-                message:
-                  "لم يتم العثور على الطالب في النظام.",
-              },
-              {
-                id: "4",
-                values: [
-                  "سارة محمود",
-                  "ST-1003",
-                  "01034567890",
-                  "01134567890",
-                ],
-                status: "duplicate",
-                message:
-                  "يوجد سجل مكرر داخل الملف.",
-              },
-            ]
-          : [
-              {
-                id: "1",
-                values: [
-                  "ST-1001",
-                  "أحمد محمد علي",
-                  "18",
-                  "20",
-                ],
-                status: "recognized",
-              },
-              {
-                id: "2",
-                values: [
-                  "ST-1002",
-                  "محمد أحمد حسن",
-                  "16",
-                  "20",
-                ],
-                status: "recognized",
-              },
-              {
-                id: "3",
-                values: [
-                  "ST-9999",
-                  "طالب غير معروف",
-                  "15",
-                  "20",
-                ],
-                status: "unknown",
-                message:
-                  "لم يتم التعرف على الطالب.",
-              },
-              {
-                id: "4",
-                values: [
-                  "ST-1003",
-                  "سارة محمود",
-                  "25",
-                  "20",
-                ],
-                status: "error",
-                message:
-                  "الدرجة أكبر من الدرجة النهائية.",
-              },
-            ];
+    try {
+      const excelData = await readExcelFile(selectedFile);
+      
+      const rows: PreviewRow[] = await Promise.all(
+        excelData.map(async (row, index) => {
+          const values = row.map(cell => String(cell ?? ''));
+          
+          if (importType === "students") {
+            const studentId = values[1]?.trim();
+            const studentName = values[0]?.trim();
+            
+            // Try to find student by ID
+            const existingStudents = await studentService.list();
+            const existingStudent = existingStudents.find(s => 
+              s.studentId.toLowerCase() === studentId.toLowerCase()
+            );
+            
+            // Check for duplicates in the file
+           const isDuplicate = excelData.slice(0, index).some(
+  (prevRow) =>
+    String(prevRow[1] ?? "").trim().toLowerCase() ===
+    studentId.toLowerCase()
+);
+            
+            if (isDuplicate) {
+              return {
+                id: String(index + 1),
+                values,
+                status: "duplicate" as const,
+                message: "يوجد سجل مكرر داخل الملف.",
+              };
+            }
+            
+            if (existingStudent) {
+              return {
+                id: String(index + 1),
+                values,
+                status: "recognized" as const,
+                message: "تم التعرف على الطالب بنجاح",
+              };
+            }
+            
+            return {
+              id: String(index + 1),
+              values,
+              status: "unknown" as const,
+              message: "لم يتم العثور على الطالب في النظام.",
+            };
+          } else {
+            // Grades import logic
+            const studentId = values[0]?.trim();
+            const score = Number(values[2]);
+            const maxScore = 20; // This should come from the selected exam
+            
+            const existingStudents = await studentService.list();
+            const existingStudent = existingStudents.find(s => 
+              s.studentId.toLowerCase() === studentId.toLowerCase()
+            );
+            
+            if (!existingStudent) {
+              return {
+                id: String(index + 1),
+                values,
+                status: "unknown" as const,
+                message: "لم يتم التعرف على الطالب.",
+              };
+            }
+            
+            if (isNaN(score) || score < 0 || score > maxScore) {
+              return {
+                id: String(index + 1),
+                values,
+                status: "error" as const,
+                message: `الدرجة أكبر من الدرجة النهائية (${maxScore}).`,
+              };
+            }
+            
+            return {
+              id: String(index + 1),
+              values,
+              status: "recognized" as const,
+              message: "تم التعرف على الطالب بنجاح",
+            };
+          }
+        })
+      );
 
       setPreviewRows(rows);
       setShowPreview(true);
+    } catch (error) {
+      setError("فشل قراءة ملف Excel. يرجى التأكد من صحة الملف.");
+      console.error("Excel parsing error:", error);
+    } finally {
       setIsPreviewLoading(false);
-    }, 600);
+    }
   };
 
   const validPreviewRows = previewRows.filter(
@@ -415,16 +441,15 @@ export default function ExcelPage() {
     const headers =
       getTemplateHeaders(importType);
 
-    downloadCsv(
-      headers,
-      `template-${importType}.csv`,
-    );
+    generateTemplate(headers, `template-${importType}.xlsx`);
   };
 
-  const handleExportAllStudents = () => {
+  const handleExportAllStudents = async () => {
     setExportLoading(true);
 
-    window.setTimeout(() => {
+    try {
+      const students = await studentService.list();
+      
       const headers = [
         "اسم الطالب",
         "Student ID",
@@ -432,23 +457,22 @@ export default function ExcelPage() {
         "رقم ولي الأمر",
       ];
 
-      const rows = initialStudents.map(
+      const rows = students.map(
         (student) => [
           student.name,
           student.studentId,
-          student.phone,
+          student.phone || "",
           student.guardianPhone,
         ],
       );
 
-      downloadCsv(
-        headers,
-        "all-students.csv",
-        rows,
-      );
-
+      writeExcelFile([headers, ...rows], "all-students.xlsx");
+    } catch (error) {
+      setError("فشل تصدير بيانات الطلاب");
+      console.error("Export error:", error);
+    } finally {
       setExportLoading(false);
-    }, 400);
+    }
   };
 
   const handleExportSelectedStudent = () => {

@@ -1,3 +1,4 @@
+
 export type ModuleKey =
   | "students"
   | "groups"
@@ -16,7 +17,23 @@ export type ModuleKey =
   | "absenceMessages"
   | "reports";
 
-export type ModuleSettings = Record<ModuleKey, boolean>;
+export type ParentPortalSyncMode =
+  | "manual"
+  | "auto";
+
+export type ParentPortalSyncStatus =
+  | "idle"
+  | "syncing"
+  | "success"
+  | "error";
+
+export type ParentPortalSettings = {
+  enabled: boolean;
+  syncMode: ParentPortalSyncMode;
+  lastSync: string | null;
+  syncStatus: ParentPortalSyncStatus;
+  pendingSync: number;
+};
 
 export type CenterSettings = {
   centerName: string;
@@ -44,10 +61,11 @@ export type NotificationSettings = {
 };
 
 export type AppSettings = {
-  modules: ModuleSettings;
+  modules: Record<ModuleKey, boolean>;
   center: CenterSettings;
   attendance: AttendanceSettings;
   notifications: NotificationSettings;
   paymentsEnabled: boolean;
   reportsEnabled: boolean;
+  parentPortal: ParentPortalSettings;
 };

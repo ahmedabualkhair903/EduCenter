@@ -16,7 +16,8 @@ import type {
   ModuleKey,
 } from "@/types";
 
-const STORAGE_KEY = "educenter.settings.v1";
+const STORAGE_KEY =
+  "educenter.settings.v1";
 
 type AppSettingsContextValue = {
   settings: AppSettings;
@@ -71,6 +72,11 @@ function mergeSettings(
       ...base.notifications,
       ...(patch.notifications ?? {}),
     },
+
+    parentPortal: {
+      ...base.parentPortal,
+      ...(patch.parentPortal ?? {}),
+    },
   };
 }
 
@@ -107,39 +113,51 @@ export function AppSettingsProvider({
   /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    try {
-      const stored =
-        window.localStorage.getItem(
-          STORAGE_KEY,
-        );
+    const loadSettings = () => {
+      try {
+        const stored =
+          window.localStorage.getItem(
+            STORAGE_KEY,
+          );
 
-      if (!stored) {
+        if (!stored) {
+          setSettings(mockSettings);
+          setHydrated(true);
+          return;
+        }
+
+        const parsed: unknown =
+          JSON.parse(stored);
+
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          !Array.isArray(parsed)
+        ) {
+          setSettings(
+            mergeSettings(
+              mockSettings,
+              parsed as Partial<AppSettings>,
+            ),
+          );
+        } else {
+          setSettings(mockSettings);
+        }
+      } catch {
         setSettings(mockSettings);
-        return;
+      } finally {
+        setHydrated(true);
       }
+    };
 
-      const parsed: unknown =
-        JSON.parse(stored);
+    const timer = window.setTimeout(
+      loadSettings,
+      0,
+    );
 
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        !Array.isArray(parsed)
-      ) {
-        setSettings(
-          mergeSettings(
-            mockSettings,
-            parsed as Partial<AppSettings>,
-          ),
-        );
-      } else {
-        setSettings(mockSettings);
-      }
-    } catch {
-      setSettings(mockSettings);
-    } finally {
-      setHydrated(true);
-    }
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, []);
 
   /* ------------------------------------------------------------------------ */

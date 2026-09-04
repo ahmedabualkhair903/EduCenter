@@ -1,7 +1,9 @@
+
 "use client";
 
 import { useState } from "react";
 import {
+  FiAlertCircle,
   FiBell,
   FiBookOpen,
   FiCheck,
@@ -11,6 +13,7 @@ import {
   FiFileText,
   FiMapPin,
   FiMessageCircle,
+  FiRefreshCw,
   FiSave,
   FiSettings,
   FiShield,
@@ -18,6 +21,7 @@ import {
 } from "react-icons/fi";
 
 import { useAppSettings } from "@/components/providers";
+import { settingsService } from "@/services/settingsService";
 import type { ModuleKey } from "@/types";
 
 const featureIcons: Partial<
@@ -184,6 +188,15 @@ export default function SettingsPage() {
   const [saved, setSaved] =
     useState(false);
 
+  const [syncLoading, setSyncLoading] =
+    useState(false);
+
+  const [syncError, setSyncError] =
+    useState<string | null>(null);
+
+  const [syncSuccess, setSyncSuccess] =
+    useState(false);
+
   const enabledCount =
     Object.values(
       settings.modules,
@@ -235,6 +248,98 @@ export default function SettingsPage() {
     setSaved(false);
   };
 
+  const updateParentPortal = (
+    patch: Partial<
+      typeof settings.parentPortal
+    >,
+  ) => {
+    updateSettings({
+      parentPortal: {
+        ...settings.parentPortal,
+        ...patch,
+      },
+    });
+
+    setSaved(false);
+    setSyncError(null);
+    setSyncSuccess(false);
+  };
+
+  const handleParentPortalSync =
+    async () => {
+      if (
+        !settings.parentPortal.enabled ||
+        syncLoading
+      ) {
+        return;
+      }
+
+      setSyncLoading(true);
+      setSyncError(null);
+      setSyncSuccess(false);
+
+      const syncingParentPortal = {
+        ...settings.parentPortal,
+        syncStatus: "syncing" as const,
+      };
+
+      updateSettings({
+        parentPortal:
+          syncingParentPortal,
+      });
+
+      try {
+        const result =
+          await settingsService.syncParentPortal(
+            {
+              ...settings,
+              parentPortal:
+                syncingParentPortal,
+            },
+          );
+
+        if (!result.success) {
+          updateSettings({
+            parentPortal: {
+              ...result.settings.parentPortal,
+              syncStatus: "error",
+            },
+          });
+
+          setSyncError(
+            result.message ||
+              "تعذر تحديث بيانات أولياء الأمور.",
+          );
+
+          return;
+        }
+
+        updateSettings({
+          parentPortal:
+            result.settings.parentPortal,
+        });
+
+        setSyncSuccess(true);
+
+        window.setTimeout(() => {
+          setSyncSuccess(false);
+        }, 3000);
+      } catch {
+        updateSettings({
+          parentPortal: {
+            ...settings.parentPortal,
+            syncStatus: "error",
+          },
+        });
+
+        setSyncError(
+          "حدث خطأ أثناء تحديث بيانات أولياء الأمور.",
+        );
+      } finally {
+        setSyncLoading(false);
+      }
+    };
+
   const handleSave = () => {
     updateSettings({
       center: {
@@ -262,6 +367,28 @@ export default function SettingsPage() {
       setSaved(false);
     }, 2500);
   };
+
+  const parentPortalStatus =
+    settings.parentPortal.syncStatus;
+
+  const parentPortalStatusLabel =
+    parentPortalStatus === "syncing"
+      ? "جاري التحديث"
+      : parentPortalStatus === "success"
+        ? "تمت المزامنة"
+        : parentPortalStatus === "error"
+          ? "فشل التحديث"
+          : "لم تتم المزامنة";
+
+  const lastSyncLabel =
+    settings.parentPortal.lastSync
+      ? new Date(
+          settings.parentPortal.lastSync,
+        ).toLocaleString("ar-EG", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "لم تتم المزامنة بعد";
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -624,6 +751,247 @@ export default function SettingsPage() {
                 />
               </div>
             </section>
+
+            {/* Parent Portal */}
+            <section
+              id="parent-portal-settings"
+              className="rounded-xl border border-slate-200 bg-white shadow-sm"
+            >
+              <SettingsHeader
+                icon={<FiUsers size={18} />}
+                title="بوابة ولي الأمر"
+                description="إدارة تفعيل بوابة ولي الأمر وطريقة مزامنة بيانات أولياء الأمور."
+              />
+
+              <div className="divide-y divide-slate-100">
+                <FeatureRow
+                  title="تفعيل Parent Portal"
+                  description="السماح باستخدام بوابة ولي الأمر ومزامنة بيانات أولياء الأمور."
+                  icon={<FiUsers size={18} />}
+                  enabled={
+                    settings.parentPortal
+                      .enabled
+                  }
+                  onToggle={() =>
+                    updateParentPortal({
+                      enabled:
+                        !settings.parentPortal
+                          .enabled,
+                    })
+                  }
+                />
+
+                <div className="flex flex-col gap-4 px-5 py-4 sm:px-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                      <FiRefreshCw
+                        size={18}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-700">
+                        طريقة المزامنة
+                      </p>
+
+                      <p className="mt-1 text-[11px] leading-5 text-slate-400">
+                        اختر هل تتم المزامنة يدويًا
+                        أو تلقائيًا عند توفر Backend.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      disabled={
+                        !settings.parentPortal
+                          .enabled
+                      }
+                      onClick={() =>
+                        updateParentPortal({
+                          syncMode: "manual",
+                        })
+                      }
+                      className={[
+                        "rounded-lg border px-4 py-3 text-right transition",
+                        settings.parentPortal
+                          .syncMode ===
+                        "manual"
+                          ? "border-teal-500 bg-teal-50 text-teal-700"
+                          : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300",
+                        !settings.parentPortal
+                          .enabled
+                          ? "cursor-not-allowed opacity-50"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <span className="block text-xs font-semibold">
+                        Manual Sync
+                      </span>
+
+                      <span className="mt-1 block text-[11px] text-slate-400">
+                        التحديث يدويًا من خلال الزر.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={
+                        !settings.parentPortal
+                          .enabled
+                      }
+                      onClick={() =>
+                        updateParentPortal({
+                          syncMode: "auto",
+                        })
+                      }
+                      className={[
+                        "rounded-lg border px-4 py-3 text-right transition",
+                        settings.parentPortal
+                          .syncMode ===
+                        "auto"
+                          ? "border-teal-500 bg-teal-50 text-teal-700"
+                          : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300",
+                        !settings.parentPortal
+                          .enabled
+                          ? "cursor-not-allowed opacity-50"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <span className="block text-xs font-semibold">
+                        Auto Sync
+                      </span>
+
+                      <span className="mt-1 block text-[11px] text-slate-400">
+                        جاهز للربط مع المزامنة
+                        التلقائية من Backend.
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 px-5 py-4 sm:grid-cols-3 sm:px-6">
+                  <ParentPortalInfo
+                    label="آخر مزامنة"
+                    value={lastSyncLabel}
+                  />
+
+                  <ParentPortalInfo
+                    label="حالة المزامنة"
+                    value={
+                      parentPortalStatusLabel
+                    }
+                    positive={
+                      parentPortalStatus ===
+                      "success"
+                    }
+                  />
+
+                  <ParentPortalInfo
+                    label="Pending Sync"
+                    value={String(
+                      settings.parentPortal
+                        .pendingSync,
+                    )}
+                    positive={
+                      settings.parentPortal
+                        .pendingSync === 0
+                    }
+                  />
+                </div>
+
+                {syncSuccess && (
+                  <div className="mx-5 my-4 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700 sm:mx-6">
+                    <FiCheck
+                      size={17}
+                      className="mt-0.5 shrink-0"
+                    />
+
+                    <div>
+                      <p>
+                        تم تحديث بيانات أولياء
+                        الأمور بنجاح.
+                      </p>
+
+                      <p className="mt-1 text-[11px] font-normal text-emerald-600">
+                        تمت مزامنة البيانات
+                        المعلقة وتحديث وقت آخر
+                        مزامنة.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {syncError && (
+                  <div className="mx-5 my-4 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 sm:mx-6">
+                    <FiAlertCircle
+                      size={17}
+                      className="mt-0.5 shrink-0"
+                    />
+
+                    <div>
+                      <p>
+                        تعذر تحديث بيانات أولياء
+                        الأمور.
+                      </p>
+
+                      <p className="mt-1 text-[11px] font-normal text-red-600">
+                        {syncError}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-700">
+                      تحديث بيانات أولياء الأمور
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-5 text-slate-400">
+                      تحديث البيانات المعلقة من خلال
+                      خدمة المزامنة. الربط الفعلي
+                      مع النظام Online يتم لاحقًا
+                      من خلال Backend API.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={
+                      !settings.parentPortal
+                        .enabled ||
+                      syncLoading
+                    }
+                    onClick={
+                      handleParentPortalSync
+                    }
+                    className={[
+                      "inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold shadow-sm transition",
+                      settings.parentPortal
+                        .enabled &&
+                      !syncLoading
+                        ? "bg-teal-600 text-white hover:bg-teal-700 active:scale-[0.98]"
+                        : "cursor-not-allowed bg-slate-100 text-slate-400",
+                    ].join(" ")}
+                  >
+                    <FiRefreshCw
+                      size={15}
+                      className={
+                        syncLoading
+                          ? "animate-spin"
+                          : ""
+                      }
+                    />
+
+                    {syncLoading
+                      ? "جاري التحديث..."
+                      : "تحديث البيانات"}
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
 
           {/* Sidebar */}
@@ -691,6 +1059,31 @@ export default function SettingsPage() {
                 />
 
                 <StatusRow
+                  label="Parent Portal"
+                  value={
+                    settings.parentPortal
+                      .enabled
+                      ? "مفعّل"
+                      : "متوقف"
+                  }
+                  positive={
+                    settings.parentPortal
+                      .enabled
+                  }
+                />
+
+                <StatusRow
+                  label="Sync Status"
+                  value={
+                    parentPortalStatusLabel
+                  }
+                  positive={
+                    parentPortalStatus ===
+                    "success"
+                  }
+                />
+
+                <StatusRow
                   label="الإصدار"
                   value="1.0.0"
                 />
@@ -744,6 +1137,15 @@ export default function SettingsPage() {
                     )
                   }
                 />
+
+                <QuickSetting
+                  label="بوابة ولي الأمر"
+                  onClick={() =>
+                    scrollToSection(
+                      "parent-portal-settings",
+                    )
+                  }
+                />
               </div>
             </section>
 
@@ -759,10 +1161,11 @@ export default function SettingsPage() {
                   </h2>
 
                   <p className="mt-1 text-[11px] leading-5 text-slate-300">
-                    الإعدادات الحالية محفوظة محليًا
-                    باستخدام Provider وLocal Storage.
-                    يمكن استبدال طبقة التخزين بـREST
-                    API لاحقًا دون إعادة بناء الواجهة.
+                    إعدادات Parent Portal
+                    والمزامنة محفوظة محليًا حاليًا،
+                    وطبقة الخدمة جاهزة لاستبدال
+                    Mock Sync بطلبات Backend API
+                    لاحقًا دون إعادة بناء الواجهة.
                   </p>
                 </div>
               </div>
@@ -922,6 +1325,35 @@ function SettingToggle({
       enabled={enabled}
       onToggle={onToggle}
     />
+  );
+}
+
+function ParentPortalInfo({
+  label,
+  value,
+  positive = false,
+}: {
+  label: string;
+  value: string;
+  positive?: boolean;
+}) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-4 py-3">
+      <p className="text-[11px] font-medium text-slate-400">
+        {label}
+      </p>
+
+      <p
+        className={[
+          "mt-1 text-xs font-semibold",
+          positive
+            ? "text-emerald-600"
+            : "text-slate-700",
+        ].join(" ")}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 

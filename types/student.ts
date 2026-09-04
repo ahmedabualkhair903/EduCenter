@@ -1,4 +1,8 @@
-export type StudentStatus = "active" | "inactive" | "suspended";
+
+export type StudentStatus =
+  | "active"
+  | "inactive"
+  | "suspended";
 
 export type CustomFieldType =
   | "text"

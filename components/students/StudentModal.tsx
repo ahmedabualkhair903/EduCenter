@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -37,14 +38,19 @@ export type StudentFormData = {
   status: StudentStatus;
   notes: string;
   customFields: StudentCustomFieldValue[];
+  totalRequired?: number;
+  initialPayment?: number;
 };
 
 type StudentModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (student: StudentFormData) => void;
+  onSubmit: (
+    student: StudentFormData,
+  ) => void | Promise<void>;
   initialData?: Student | null;
   mode?: "add" | "edit";
+  showFinancialFields?: boolean;
 };
 
 const emptyForm: StudentFormData = {
@@ -59,6 +65,8 @@ const emptyForm: StudentFormData = {
   status: "active",
   notes: "",
   customFields: [],
+  totalRequired: 0,
+  initialPayment: 0,
 };
 
 const groups = [
@@ -87,15 +95,68 @@ const grades = [
 
 const PHONE_REGEX = /^[0-9+\s-]{8,15}$/;
 
-export default function StudentModal({
+function createInitialForm(
+  initialData?: Student | null,
+): StudentFormData {
+  if (!initialData) {
+    return {
+      ...emptyForm,
+      customFields: [],
+      totalRequired: 0,
+      initialPayment: 0,
+    };
+  }
+
+  return {
+    studentId: initialData.studentId,
+    name: initialData.name,
+    phone: initialData.phone ?? "",
+    guardianName: initialData.guardianName,
+    guardianPhone: initialData.guardianPhone,
+    grade: initialData.grade,
+    groupId: initialData.groupId ?? "",
+    address: initialData.address ?? "",
+    status: initialData.status,
+    notes: initialData.notes ?? "",
+    customFields: initialData.customFields ?? [],
+    totalRequired:
+      initialData.financial?.totalRequired ?? 0,
+    initialPayment:
+      initialData.financial?.paid ?? 0,
+  };
+}
+
+export default function StudentModal(
+  props: StudentModalProps,
+) {
+  if (!props.open) {
+    return null;
+  }
+
+  const formKey = props.initialData
+    ? `edit-${props.initialData.id}`
+    : "add";
+
+  return (
+    <StudentModalContent
+      key={formKey}
+      {...props}
+    />
+  );
+}
+
+function StudentModalContent({
   open,
   onClose,
   onSubmit,
   initialData = null,
   mode = "add",
+  showFinancialFields = false,
 }: StudentModalProps) {
   const [form, setForm] =
-    useState<StudentFormData>(emptyForm);
+    useState<StudentFormData>(() =>
+      createInitialForm(initialData),
+    );
 
   const [errors, setErrors] =
     useState<
@@ -104,27 +165,52 @@ export default function StudentModal({
       >
     >({});
 
-  const [customFieldDefinitions, setCustomFieldDefinitions] =
-    useState<StudentCustomFieldDefinition[]>([]);
+  const [
+    customFieldDefinitions,
+    setCustomFieldDefinitions,
+  ] = useState<StudentCustomFieldDefinition[]>(
+    [],
+  );
 
-  const [customFieldsLoading, setCustomFieldsLoading] =
-    useState(false);
+  const [
+    customFieldsLoading,
+    setCustomFieldsLoading,
+  ] = useState(false);
 
-  const [showAddCustomField, setShowAddCustomField] =
-    useState(false);
+  const [
+    customFieldSaving,
+    setCustomFieldSaving,
+  ] = useState(false);
 
-  const [newCustomField, setNewCustomField] =
-    useState<{
-      label: string;
-      type: StudentCustomFieldDefinition["type"];
-      required: boolean;
-      options: string;
-    }>({
-      label: "",
-      type: "text",
-      required: false,
-      options: "",
-    });
+  const [
+    showAddCustomField,
+    setShowAddCustomField,
+  ] = useState(false);
+
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+  const [
+    submitError,
+    setSubmitError,
+  ] = useState<string | null>(null);
+
+  const [
+    newCustomField,
+    setNewCustomField,
+  ] = useState<{
+    label: string;
+    type: StudentCustomFieldDefinition["type"];
+    required: boolean;
+    options: string;
+  }>({
+    label: "",
+    type: "text",
+    required: false,
+    options: "",
+  });
 
   useEffect(() => {
     if (!open) {
@@ -140,13 +226,19 @@ export default function StudentModal({
         const definitions =
           await studentService.customFields();
 
-        if (mounted) {
-          setCustomFieldDefinitions(
-            [...definitions].sort(
-              (a, b) => a.order - b.order,
-            ),
-          );
+        if (!mounted) {
+          return;
         }
+
+        const sortedDefinitions = [
+          ...definitions,
+        ].sort(
+          (a, b) => a.order - b.order,
+        );
+
+        setCustomFieldDefinitions(
+          sortedDefinitions,
+        );
       } catch {
         if (mounted) {
           setCustomFieldDefinitions([]);
@@ -165,52 +257,10 @@ export default function StudentModal({
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    if (initialData) {
-      setForm({
-        studentId: initialData.studentId,
-        name: initialData.name,
-        phone: initialData.phone ?? "",
-        guardianName: initialData.guardianName,
-        guardianPhone: initialData.guardianPhone,
-        grade: initialData.grade,
-        groupId: initialData.groupId ?? "",
-        address: initialData.address ?? "",
-        status: initialData.status,
-        notes: initialData.notes ?? "",
-        customFields:
-          initialData.customFields ?? [],
-      });
-    } else {
-      setForm({
-        ...emptyForm,
-        customFields: [],
-      });
-    }
-
-    setErrors({});
-    setShowAddCustomField(false);
-
-    setNewCustomField({
-      label: "",
-      type: "text",
-      required: false,
-      options: "",
-    });
-  }, [open, initialData]);
-
-  if (!open) {
-    return null;
-  }
-
   const isEdit = mode === "edit";
 
   const updateField = <
-    K extends keyof StudentFormData,
+    K extends keyof StudentFormData
   >(
     field: K,
     value: StudentFormData[K],
@@ -224,21 +274,25 @@ export default function StudentModal({
       ...current,
       [field]: undefined,
     }));
+
+    setSubmitError(null);
   };
 
   const getCustomFieldValue = (
     fieldId: string,
-  ) => {
-    return (
-      form.customFields.find(
-        (field) => field.fieldId === fieldId,
-      )?.value ?? null
-    );
-  };
+  ) =>
+    form.customFields.find(
+      (field) =>
+        field.fieldId === fieldId,
+    )?.value ?? null;
 
   const updateCustomFieldValue = (
     fieldId: string,
-    value: string | number | boolean | null,
+    value:
+      | string
+      | number
+      | boolean
+      | null,
   ) => {
     setForm((current) => {
       const existingIndex =
@@ -279,92 +333,154 @@ export default function StudentModal({
       ...current,
       customFields: undefined,
     }));
+
+    setSubmitError(null);
   };
 
-  const addCustomFieldDefinition = () => {
-    const label =
-      newCustomField.label.trim();
+  const addCustomFieldDefinition =
+    async () => {
+      const label =
+        newCustomField.label.trim();
 
-    if (!label) {
-      return;
-    }
+      if (!label) {
+        return;
+      }
 
-    const id = `custom-${Date.now()}`;
+      if (
+        newCustomField.type === "select" &&
+        !newCustomField.options.trim()
+      ) {
+        return;
+      }
 
-    const options =
-      newCustomField.type === "select"
-        ? newCustomField.options
-            .split(",")
-            .map((option) => option.trim())
-            .filter(Boolean)
-        : undefined;
+      setCustomFieldSaving(true);
 
-    const definition: StudentCustomFieldDefinition = {
-      id,
-      label,
-      type: newCustomField.type,
-      required: newCustomField.required,
-      options,
-      active: true,
-      order:
-        customFieldDefinitions.length + 1,
+      try {
+        const id = `custom-${Date.now()}`;
+
+        const options =
+          newCustomField.type === "select"
+            ? newCustomField.options
+                .split(",")
+                .map((option) =>
+                  option.trim(),
+                )
+                .filter(Boolean)
+            : undefined;
+
+        const definition: StudentCustomFieldDefinition =
+          {
+            id,
+            label,
+            type: newCustomField.type,
+            required:
+              newCustomField.required,
+            options,
+            active: true,
+            order:
+              customFieldDefinitions.length +
+              1,
+          };
+
+        const createdDefinition =
+          await studentService.createCustomField(
+            definition,
+          );
+
+        setCustomFieldDefinitions(
+          (current) =>
+            [
+              ...current,
+              createdDefinition,
+            ].sort(
+              (a, b) =>
+                a.order - b.order,
+            ),
+        );
+
+        setForm((current) => ({
+          ...current,
+          customFields: [
+            ...current.customFields,
+            {
+              fieldId:
+                createdDefinition.id,
+              value:
+                createdDefinition.type ===
+                "boolean"
+                  ? false
+                  : null,
+            },
+          ],
+        }));
+
+        setNewCustomField({
+          label: "",
+          type: "text",
+          required: false,
+          options: "",
+        });
+
+        setShowAddCustomField(false);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "تعذر إضافة الحقل";
+
+        window.alert(message);
+      } finally {
+        setCustomFieldSaving(false);
+      }
     };
 
-    setCustomFieldDefinitions(
-      (current) => [
-        ...current,
-        definition,
-      ],
-    );
+  const removeCustomFieldDefinition =
+    async (
+      fieldId: string,
+    ) => {
+      try {
+        const removed =
+          await studentService.deleteCustomField(
+            fieldId,
+          );
 
-    setForm((current) => ({
-      ...current,
-      customFields: [
-        ...current.customFields,
-        {
-          fieldId: id,
-          value:
-            definition.type === "boolean"
-              ? false
-              : null,
-        },
-      ],
-    }));
+        if (!removed) {
+          return;
+        }
 
-    setNewCustomField({
-      label: "",
-      type: "text",
-      required: false,
-      options: "",
-    });
+        setCustomFieldDefinitions(
+          (current) =>
+            current.filter(
+              (field) =>
+                field.id !== fieldId,
+            ),
+        );
 
-    setShowAddCustomField(false);
-  };
+        setForm((current) => ({
+          ...current,
+          customFields:
+            current.customFields.filter(
+              (field) =>
+                field.fieldId !==
+                fieldId,
+            ),
+        }));
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "تعذر حذف الحقل";
 
-  const removeCustomFieldDefinition = (
-    fieldId: string,
-  ) => {
-    setCustomFieldDefinitions(
-      (current) =>
-        current.filter(
-          (field) =>
-            field.id !== fieldId,
-        ),
-    );
-
-    setForm((current) => ({
-      ...current,
-      customFields:
-        current.customFields.filter(
-          (field) =>
-            field.fieldId !== fieldId,
-        ),
-    }));
-  };
+        window.alert(message);
+      }
+    };
 
   const validate = () => {
     const nextErrors: Partial<
-      Record<keyof StudentFormData, string>
+      Record<
+        keyof StudentFormData,
+        string
+      >
     > = {};
 
     if (!form.studentId.trim()) {
@@ -416,6 +532,47 @@ export default function StudentModal({
         "اختر المجموعة";
     }
 
+    if (
+      showFinancialFields &&
+      !isEdit
+    ) {
+      const totalRequired =
+        Number(
+          form.totalRequired ?? 0,
+        );
+
+      const initialPayment =
+        Number(
+          form.initialPayment ?? 0,
+        );
+
+      if (
+        !Number.isFinite(
+          totalRequired,
+        ) ||
+        totalRequired < 0
+      ) {
+        nextErrors.totalRequired =
+          "أدخل قيمة صحيحة للمبلغ المطلوب";
+      }
+
+      if (
+        !Number.isFinite(
+          initialPayment,
+        ) ||
+        initialPayment < 0
+      ) {
+        nextErrors.initialPayment =
+          "أدخل قيمة صحيحة للمبلغ المدفوع";
+      } else if (
+        initialPayment >
+        totalRequired
+      ) {
+        nextErrors.initialPayment =
+          "المبلغ المدفوع لا يمكن أن يتجاوز إجمالي المطلوب";
+      }
+    }
+
     customFieldDefinitions
       .filter(
         (field) =>
@@ -424,7 +581,9 @@ export default function StudentModal({
       )
       .forEach((field) => {
         const value =
-          getCustomFieldValue(field.id);
+          getCustomFieldValue(
+            field.id,
+          );
 
         const isEmpty =
           value === null ||
@@ -442,36 +601,100 @@ export default function StudentModal({
     setErrors(nextErrors);
 
     return (
-      Object.keys(nextErrors).length === 0
+      Object.keys(nextErrors)
+        .length === 0
     );
   };
 
-  const handleSubmit = (
+  const handleSubmit = async (
     event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
+
+    setSubmitError(null);
 
     if (!validate()) {
       return;
     }
 
-    onSubmit({
-      ...form,
-      studentId:
-        form.studentId.trim(),
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      guardianName:
-        form.guardianName.trim(),
-      guardianPhone:
-        form.guardianPhone.trim(),
-      address:
-        form.address.trim(),
-      notes: form.notes.trim(),
-      customFields:
-        form.customFields,
-    });
+    setSubmitting(true);
+
+    try {
+      await onSubmit({
+        ...form,
+        studentId:
+          form.studentId.trim(),
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        guardianName:
+          form.guardianName.trim(),
+        guardianPhone:
+          form.guardianPhone.trim(),
+        address:
+          form.address.trim(),
+        notes:
+          form.notes.trim(),
+        totalRequired:
+          showFinancialFields &&
+          !isEdit
+            ? Math.max(
+                Number(
+                  form.totalRequired ??
+                    0,
+                ),
+                0,
+              )
+            : undefined,
+        initialPayment:
+          showFinancialFields &&
+          !isEdit
+            ? Math.max(
+                Number(
+                  form.initialPayment ??
+                    0,
+                ),
+                0,
+              )
+            : undefined,
+        customFields:
+          form.customFields,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "تعذر حفظ بيانات الطالب";
+
+      setSubmitError(message);
+
+      throw error;
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const totalRequired =
+    Math.max(
+      Number(
+        form.totalRequired ?? 0,
+      ),
+      0,
+    );
+
+  const initialPayment =
+    Math.max(
+      Number(
+        form.initialPayment ?? 0,
+      ),
+      0,
+    );
+
+  const remainingAmount =
+    Math.max(
+      totalRequired -
+        initialPayment,
+      0,
+    );
 
   return (
     <div
@@ -523,11 +746,35 @@ export default function StudentModal({
             type="button"
             onClick={onClose}
             aria-label="إغلاق"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            disabled={submitting}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <FiX size={19} />
           </button>
         </div>
+
+        {submitError && (
+          <div className="shrink-0 border-b border-red-100 bg-red-50 px-5 py-3 sm:px-6">
+            <div
+              role="alert"
+              className="flex items-start gap-2"
+            >
+              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-[11px] font-bold text-red-600">
+                !
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-red-700">
+                  تعذر حفظ الطالب
+                </p>
+
+                <p className="mt-0.5 text-xs text-red-600">
+                  {submitError}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit}
@@ -549,11 +796,15 @@ export default function StudentModal({
                 <Field
                   label="رقم الطالب"
                   required
-                  error={errors.studentId}
+                  error={
+                    errors.studentId
+                  }
                 >
                   <input
                     dir="ltr"
-                    value={form.studentId}
+                    value={
+                      form.studentId
+                    }
                     onChange={(event) =>
                       updateField(
                         "studentId",
@@ -584,7 +835,9 @@ export default function StudentModal({
                     }
                     placeholder="مثال: أحمد محمد علي"
                     className={inputClass(
-                      Boolean(errors.name),
+                      Boolean(
+                        errors.name,
+                      ),
                     )}
                   />
                 </Field>
@@ -607,7 +860,9 @@ export default function StudentModal({
                     }
                     placeholder="01012345678"
                     className={`${inputClass(
-                      Boolean(errors.phone),
+                      Boolean(
+                        errors.phone,
+                      ),
                     )} text-left`}
                   />
                 </Field>
@@ -639,7 +894,9 @@ export default function StudentModal({
                   error={errors.groupId}
                 >
                   <SelectField
-                    value={form.groupId}
+                    value={
+                      form.groupId
+                    }
                     onChange={(value) =>
                       updateField(
                         "groupId",
@@ -717,6 +974,125 @@ export default function StudentModal({
               </div>
             </section>
 
+            {showFinancialFields &&
+              !isEdit && (
+                <section className="mt-7 border-t border-slate-100 pt-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-bold text-slate-800">
+                      الاشتراك والمصروفات
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      حدد إجمالي المطلوب والمبلغ المدفوع عند التسجيل.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      label="إجمالي المطلوب"
+                      required
+                      error={
+                        errors.totalRequired
+                      }
+                    >
+                      <input
+                        dir="ltr"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={
+                          form.totalRequired ??
+                          0
+                        }
+                        onChange={(event) =>
+                          updateField(
+                            "totalRequired",
+                            Number(
+                              event.target
+                                .value,
+                            ),
+                          )
+                        }
+                        placeholder="مثال: 1500"
+                        className={`${inputClass(
+                          Boolean(
+                            errors.totalRequired,
+                          ),
+                        )} text-left`}
+                      />
+                    </Field>
+
+                    <Field
+                      label="المبلغ المدفوع"
+                      required
+                      error={
+                        errors.initialPayment
+                      }
+                    >
+                      <input
+                        dir="ltr"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={
+                          form.initialPayment ??
+                          0
+                        }
+                        onChange={(event) =>
+                          updateField(
+                            "initialPayment",
+                            Number(
+                              event.target
+                                .value,
+                            ),
+                          )
+                        }
+                        placeholder="مثال: 500"
+                        className={`${inputClass(
+                          Boolean(
+                            errors.initialPayment,
+                          ),
+                        )} text-left`}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+                      <p className="text-[10px] text-slate-400">
+                        المطلوب
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-800">
+                        {totalRequired}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
+                      <p className="text-[10px] text-emerald-600">
+                        المدفوع
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-emerald-700">
+                        {initialPayment}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-center">
+                      <p className="text-[10px] text-amber-600">
+                        المتبقي
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-amber-700">
+                        {remainingAmount}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              )}
+
             <section className="mt-7 border-t border-slate-100 pt-6">
               <div className="mb-4">
                 <h3 className="text-sm font-bold text-slate-800">
@@ -785,7 +1161,7 @@ export default function StudentModal({
                 </Field>
               </div>
             </section>
-
+```tsx
             <section className="mt-7 border-t border-slate-100 pt-6">
               <div className="mb-4">
                 <div className="flex items-start justify-between gap-3">
@@ -807,7 +1183,10 @@ export default function StudentModal({
                           !current,
                       )
                     }
-                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 transition hover:border-teal-300 hover:bg-teal-100"
+                    disabled={
+                      customFieldSaving
+                    }
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 transition hover:border-teal-300 hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <FiPlus size={14} />
                     إضافة خانة جديدة
@@ -818,7 +1197,10 @@ export default function StudentModal({
               {showAddCustomField && (
                 <div className="mb-5 rounded-xl border border-teal-100 bg-teal-50/40 p-4">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="اسم الخانة" required>
+                    <Field
+                      label="اسم الخانة"
+                      required
+                    >
                       <input
                         value={
                           newCustomField.label
@@ -849,7 +1231,8 @@ export default function StudentModal({
                           setNewCustomField(
                             (current) => ({
                               ...current,
-                              type: value as StudentCustomFieldDefinition["type"],
+                              type:
+                                value as StudentCustomFieldDefinition["type"],
                             }),
                           )
                         }
@@ -861,19 +1244,15 @@ export default function StudentModal({
                           "textarea",
                           "boolean",
                         ]}
-                        renderOption={(
-                          option,
-                        ) => {
+                        renderOption={(option) => {
                           const labels: Record<
                             string,
                             string
                           > = {
                             text: "نص",
-                            number:
-                              "رقم",
+                            number: "رقم",
                             date: "تاريخ",
-                            select:
-                              "اختيار",
+                            select: "اختيار",
                             textarea:
                               "نص طويل",
                             boolean:
@@ -883,8 +1262,7 @@ export default function StudentModal({
                           return (
                             labels[
                               option
-                            ] ??
-                            option
+                            ] ?? option
                           );
                         }}
                       />
@@ -932,8 +1310,7 @@ export default function StudentModal({
                               (current) => ({
                                 ...current,
                                 options:
-                                  event
-                                    .target
+                                  event.target
                                     .value,
                               }),
                             )
@@ -959,7 +1336,10 @@ export default function StudentModal({
                           false,
                         )
                       }
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                      disabled={
+                        customFieldSaving
+                      }
+                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                     >
                       إلغاء
                     </button>
@@ -970,6 +1350,7 @@ export default function StudentModal({
                         addCustomFieldDefinition
                       }
                       disabled={
+                        customFieldSaving ||
                         !newCustomField.label.trim() ||
                         (newCustomField.type ===
                           "select" &&
@@ -978,7 +1359,10 @@ export default function StudentModal({
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <FiPlus size={13} />
-                      إضافة الخانة
+
+                      {customFieldSaving
+                        ? "جاري الإضافة..."
+                        : "إضافة الخانة"}
                     </button>
                   </div>
                 </div>
@@ -995,7 +1379,8 @@ export default function StudentModal({
                   جاري تحميل الحقول الإضافية...
                 </div>
               ) : customFieldDefinitions.filter(
-                  (field) => field.active,
+                  (field) =>
+                    field.active,
                 ).length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-400">
                   لا توجد حقول إضافية حاليًا.
@@ -1010,8 +1395,7 @@ export default function StudentModal({
                     )
                     .sort(
                       (a, b) =>
-                        a.order -
-                        b.order,
+                        a.order - b.order,
                     )
                     .map((field) => (
                       <CustomFieldInput
@@ -1027,7 +1411,7 @@ export default function StudentModal({
                           )
                         }
                         onRemove={() =>
-                          removeCustomFieldDefinition(
+                          void removeCustomFieldDefinition(
                             field.id,
                           )
                         }
@@ -1067,14 +1451,16 @@ export default function StudentModal({
             <button
               type="button"
               onClick={onClose}
-              className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              disabled={submitting}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               إلغاء
             </button>
 
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-semibold text-white transition hover:bg-teal-700 active:scale-[0.98]"
+              disabled={submitting}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-semibold text-white transition hover:bg-teal-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isEdit ? (
                 <FiSave size={15} />
@@ -1082,9 +1468,11 @@ export default function StudentModal({
                 <FiUserPlus size={15} />
               )}
 
-              {isEdit
-                ? "حفظ التعديلات"
-                : "إضافة الطالب"}
+              {submitting
+                ? "جاري الحفظ..."
+                : isEdit
+                  ? "حفظ التعديلات"
+                  : "إضافة الطالب"}
             </button>
           </div>
         </form>
@@ -1100,7 +1488,11 @@ function CustomFieldInput({
   onRemove,
 }: {
   field: StudentCustomFieldDefinition;
-  value: string | number | boolean | null;
+  value:
+    | string
+    | number
+    | boolean
+    | null;
   onChange: (
     value:
       | string
@@ -1170,13 +1562,10 @@ function CustomFieldInput({
               )
             }
             placeholder="اختر..."
-            options={
-              field.options ?? []
-            }
+            options={field.options ?? []}
             error={error}
           />
-        ) : field.type ===
-          "textarea" ? (
+        ) : field.type === "textarea" ? (
           <textarea
             value={
               value === null ||
@@ -1195,11 +1584,9 @@ function CustomFieldInput({
         ) : (
           <input
             type={
-              field.type ===
-              "number"
+              field.type === "number"
                 ? "number"
-                : field.type ===
-                    "date"
+                : field.type === "date"
                   ? "date"
                   : "text"
             }
@@ -1360,10 +1747,13 @@ function SelectField({
   );
 }
 
-function inputClass(error: boolean) {
+function inputClass(
+  error: boolean,
+) {
   return `h-10 w-full rounded-lg border bg-slate-50 px-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 ${
     error
       ? "border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-500/10"
       : "border-slate-200 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
   }`;
 }
+

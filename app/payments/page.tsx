@@ -1121,33 +1121,14 @@ function PaymentModal({
   const [error, setError] =
     useState("");
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setStudentId(
-      payment?.studentId ?? "",
-    );
-
-    setAmount(
-      String(payment?.amount ?? ""),
-    );
-
-    setMethod(
-      payment?.method ?? "cash",
-    );
-
-    setPaidAt(
-      payment?.paidAt ??
-        new Date()
-          .toISOString()
-          .slice(0, 10),
-    );
-
-    setNotes(payment?.notes ?? "");
-    setError("");
-  }, [open, payment]);
+  /*
+   * The form state is intentionally initialized from the
+   * current payment when the modal component mounts.
+   *
+   * When opening a different payment for editing, the parent
+   * gives PaymentModal a new key so React remounts this form
+   * with the correct initial values.
+   */
 
   if (!open) {
     return null;

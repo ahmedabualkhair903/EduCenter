@@ -90,25 +90,28 @@ export default function StudentsPage() {
   useEffect(() => {
     let mounted = true;
 
-    const loadStudents =
-      async () => {
-        try {
-          setLoading(true);
+    const loadStudents = async () => {
+      try {
+        setLoading(true);
 
-          const data =
-            await studentService.list();
+        const data =
+          await studentService.list();
 
-          if (mounted) {
-            setStudents(data);
-          }
-        } finally {
-          if (mounted) {
-            setLoading(false);
-          }
+        if (mounted) {
+          setStudents(data);
         }
-      };
+      } catch {
+        if (mounted) {
+          setStudents([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-    loadStudents();
+    void loadStudents();
 
     return () => {
       mounted = false;
@@ -204,7 +207,7 @@ export default function StudentsPage() {
       group,
     ]);
 
-  const handleAddStudent = (
+  const handleAddStudent = async (
     data: StudentFormData,
   ) => {
     const now =
@@ -212,21 +215,21 @@ export default function StudentsPage() {
 
     const newStudent: Student = {
       id: `student-${Date.now()}`,
-      studentId: `ST-${String(
-        students.length + 1001,
-      )}`,
-      name: data.name,
-      phone: data.phone,
+      studentId:
+        data.studentId.trim(),
+      name: data.name.trim(),
+      phone: data.phone.trim(),
       guardianName:
-        data.guardianName,
+        data.guardianName.trim(),
       guardianPhone:
-        data.guardianPhone,
+        data.guardianPhone.trim(),
       grade: data.grade,
       groupId: data.groupId,
-      address: data.address,
+      address: data.address.trim(),
       status: data.status,
-      notes: data.notes,
-      customFields: [],
+      notes: data.notes.trim(),
+      customFields:
+        data.customFields ?? [],
       financial: {
         totalRequired: 0,
         paid: 0,
@@ -236,12 +239,26 @@ export default function StudentsPage() {
       updatedAt: now,
     };
 
-    setStudents((current) => [
-      newStudent,
-      ...current,
-    ]);
+    try {
+      const createdStudent =
+        await studentService.create(
+          newStudent,
+        );
 
-    setAddModalOpen(false);
+      setStudents((current) => [
+        createdStudent,
+        ...current,
+      ]);
+
+      setAddModalOpen(false);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "تعذر إضافة الطالب";
+
+      window.alert(message);
+    }
   };
 
   const handleViewStudent = (
@@ -259,44 +276,74 @@ export default function StudentsPage() {
     setEditModalOpen(true);
   };
 
-  const handleUpdateStudent = (
-    data: StudentFormData,
-  ) => {
-    if (!editingStudent) {
-      return;
-    }
+  const handleUpdateStudent =
+    async (
+      data: StudentFormData,
+    ) => {
+      if (!editingStudent) {
+        return;
+      }
 
-    setStudents((current) =>
-      current.map((student) =>
-        student.id ===
-        editingStudent.id
-          ? {
-              ...student,
-              name: data.name,
-              phone: data.phone,
+      try {
+        const updatedStudent =
+          await studentService.update(
+            editingStudent.id,
+            {
+              studentId:
+                data.studentId.trim(),
+              name: data.name.trim(),
+              phone: data.phone.trim(),
               guardianName:
-                data.guardianName,
+                data.guardianName.trim(),
               guardianPhone:
-                data.guardianPhone,
+                data.guardianPhone.trim(),
               grade: data.grade,
-              groupId:
-                data.groupId,
+              groupId: data.groupId,
               address:
-                data.address,
-              status:
-                data.status,
+                data.address.trim(),
+              status: data.status,
               notes:
-                data.notes,
-              updatedAt:
-                new Date().toISOString(),
-            }
-          : student,
-      ),
-    );
+                data.notes.trim(),
+              customFields:
+                data.customFields ?? [],
+            },
+          );
 
-    setEditModalOpen(false);
-    setEditingStudent(null);
-  };
+        if (!updatedStudent) {
+          window.alert(
+            "تعذر العثور على الطالب",
+          );
+          return;
+        }
+
+        setStudents((current) =>
+          current.map((student) =>
+            student.id ===
+            updatedStudent.id
+              ? updatedStudent
+              : student,
+          ),
+        );
+
+        setSelectedStudent(
+          (current) =>
+            current?.id ===
+            updatedStudent.id
+              ? updatedStudent
+              : current,
+        );
+
+        setEditModalOpen(false);
+        setEditingStudent(null);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "تعذر تعديل بيانات الطالب";
+
+        window.alert(message);
+      }
+    };
 
   const handleCloseDetails =
     () => {
@@ -320,9 +367,7 @@ export default function StudentsPage() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
               <span>الرئيسية</span>
-
               <span>/</span>
-
               <span className="text-teal-600">
                 الطلاب
               </span>

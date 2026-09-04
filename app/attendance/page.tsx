@@ -31,6 +31,8 @@ import type {
   SuspiciousAttendanceCase,
 } from "@/types";
 
+import { generateQRCode } from "@/lib/qr";
+
 /* -------------------------------------------------------------------------- */
 /* Local UI Types                                                             */
 /* -------------------------------------------------------------------------- */
@@ -244,6 +246,8 @@ export default function AttendancePage() {
       "allowed" | "outside" | "unknown"
     >("allowed");
 
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
   const selectedGroup =
     groups.find(
       (group) =>
@@ -337,10 +341,27 @@ export default function AttendancePage() {
         item.status === "pending",
     ).length;
 
-  const openSession = () => {
+  const openSession = async () => {
     setError("");
     setIsLoading(true);
     setSessionStatus("loading");
+
+    try {
+      // Generate QR code for the session
+      const qrData = `${selectedGroupId}-${selectedLessonId}-${date}-${sessionPassword}`;
+      const qrUrl = await generateQRCode(qrData, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#0f766e',
+          light: '#ffffff',
+        },
+      });
+      setQrCodeUrl(qrUrl);
+    } catch (error) {
+      console.error("Failed to generate QR code:", error);
+      setError("فشل توليد رمز الحضور");
+    }
 
     window.setTimeout(() => {
       setIsLoading(false);
@@ -956,14 +977,25 @@ export default function AttendancePage() {
                   </h2>
                 </div>
 
-                <div className="mx-auto mt-4 flex h-36 w-36 items-center justify-center rounded-xl border-2 border-slate-200 bg-slate-50">
-                  <QrPlaceholder />
+                <div className="mx-auto mt-4 flex h-36 w-36 items-center justify-center rounded-xl border-2 border-slate-200 bg-white">
+                  {qrCodeUrl ? (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="رمز الحضور" 
+                      className="h-full w-full rounded-lg"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full w-full text-slate-400">
+                      <FiRefreshCw size={24} className="animate-spin" />
+                    </div>
+                  )}
                 </div>
 
                 <p className="mt-3 text-[11px] leading-5 text-slate-400">
-                  رمز تجريبي للواجهة
-                  وسيتم توليده وإدارته
-                  من الـBackend لاحقًا.
+                  {sessionStatus === "open" 
+                    ? "امسح الرمز لتسجيل الحضور"
+                    : "سيظهر الرمز عند فتح الجلسة"
+                  }
                 </p>
 
                 {passwordEnabled && (
@@ -973,7 +1005,7 @@ export default function AttendancePage() {
                     </p>
 
                     <p className="mt-0.5 text-sm font-bold tracking-[0.25em] text-teal-800">
-                      {sessionPassword}
+                      {showPassword ? sessionPassword : "••••••••"}
                     </p>
                   </div>
                 )}
@@ -1656,35 +1688,7 @@ function EmptyState({
   );
 }
 
-function QrPlaceholder() {
-  const blocks = [
-    1, 1, 0, 1, 0, 1, 1, 1,
-    1, 0, 1, 0, 1, 0, 1, 0,
-    0, 1, 1, 1, 0, 1, 0, 1,
-    1, 0, 1, 1, 1, 0, 1, 1,
-    0, 1, 0, 1, 0, 1, 1, 0,
-    1, 1, 1, 0, 1, 0, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0,
-    0, 1, 0, 1, 1, 0, 1, 1,
-  ];
 
-  return (
-    <div className="grid w-28 grid-cols-8 gap-0.5 rounded-md bg-white p-1">
-      {blocks.map(
-        (block, index) => (
-          <span
-            key={index}
-            className={`aspect-square ${
-              block
-                ? "bg-slate-900"
-                : "bg-white"
-            }`}
-          />
-        ),
-      )}
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */

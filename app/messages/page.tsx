@@ -2,7 +2,6 @@
 "use client";
 
 import {
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -78,7 +77,8 @@ const initialMessages: MessageRecord[] = [
     status: "scheduled",
     title: "تذكير بالرسوم الدراسية",
     recipient: "الطلاب المتأخرون في الدفع",
-    content: "يرجى التوجه إلى إدارة المركز لسداد المبلغ المتبقي.",
+    content:
+      "يرجى التوجه إلى إدارة المركز لسداد المبلغ المتبقي.",
     createdAt: "2026-08-24T10:00:00",
     recipientsCount: 38,
     scheduledDate: "24 أغسطس 2026",
@@ -742,6 +742,7 @@ export default function MessagesPage() {
       </div>
 
       <MessageModal
+        key={`${modalOpen}-${editingMessage?.id ?? "new"}`}
         open={modalOpen}
         message={editingMessage}
         onClose={closeModal}
@@ -852,36 +853,41 @@ function MessageModal({
 }) {
   const isEdit = Boolean(message);
 
-  const [title, setTitle] = useState("");
-  const [recipient, setRecipient] = useState("");
-  const [type, setType] =
-    useState<MessageType>("individual");
-  const [content, setContent] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [title, setTitle] = useState(
+    message?.title ?? "",
+  );
+
+  const [recipient, setRecipient] = useState(
+    message?.recipient ?? "",
+  );
+
+  const [type, setType] = useState<MessageType>(
+    message?.type ?? "individual",
+  );
+
+  const [content, setContent] = useState(
+    message?.content ?? "",
+  );
+
+  const [date, setDate] = useState(
+    message?.scheduledDate ?? "",
+  );
+
+  const [time, setTime] = useState(
+    message?.scheduledTime ?? "",
+  );
+
   const [recipientsCount, setRecipientsCount] =
-    useState("1");
-  const [status, setStatus] =
-    useState<MessageStatus>("draft");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setTitle(message?.title ?? "");
-    setRecipient(message?.recipient ?? "");
-    setType(message?.type ?? "individual");
-    setContent(message?.content ?? "");
-    setDate(message?.scheduledDate ?? "");
-    setTime(message?.scheduledTime ?? "");
-    setRecipientsCount(
+    useState(
       String(message?.recipientsCount ?? 1),
     );
-    setStatus(message?.status ?? "draft");
-    setError("");
-  }, [open, message]);
+
+  const [status, setStatus] =
+    useState<MessageStatus>(
+      message?.status ?? "draft",
+    );
+
+  const [error, setError] = useState("");
 
   if (!open) {
     return null;

@@ -1,16 +1,21 @@
+
 import { mockActivities } from "@/data";
 import type { StudentActivity } from "@/types";
-import { mockRequest } from "./mockService";
+import { mockRequest, saveToStorage, loadFromStorage } from "./mockService";
+
+const STORAGE_KEY_ACTIVITIES = "activities";
+
+const activitiesData = loadFromStorage<StudentActivity[]>(STORAGE_KEY_ACTIVITIES, mockActivities);
 
 export const activityService = {
   list: async (): Promise<StudentActivity[]> =>
-    mockRequest(mockActivities),
+    mockRequest(activitiesData),
 
   listByStudent: async (
     studentId: string,
   ): Promise<StudentActivity[]> =>
     mockRequest(
-      mockActivities
+      activitiesData
         .filter(
           (item) => item.studentId === studentId,
         )
@@ -25,10 +30,20 @@ export const activityService = {
     id: string,
   ): Promise<StudentActivity | null> => {
     const activity =
-      mockActivities.find(
+      activitiesData.find(
         (item) => item.id === id,
       ) ?? null;
 
     return mockRequest(activity);
+  },
+
+  create: async (activity: Omit<StudentActivity, "id">): Promise<StudentActivity> => {
+    const newActivity: StudentActivity = {
+      ...activity,
+      id: `activity-${Date.now()}`,
+    };
+    activitiesData.unshift(newActivity);
+    saveToStorage(STORAGE_KEY_ACTIVITIES, activitiesData);
+    return mockRequest(newActivity);
   },
 };
