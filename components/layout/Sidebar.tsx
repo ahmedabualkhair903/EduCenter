@@ -413,7 +413,7 @@ function renderItems(
     if (!hasChildren) {
       return (
         <SidebarLink
-          key={item.href ?? item.label}
+          key={item.label}
           item={item}
           pathname={pathname}
           onClose={onClose}
@@ -424,7 +424,7 @@ function renderItems(
 
     return (
       <SidebarGroup
-        key={item.href ?? item.label}
+        key={item.label}
         item={item}
         pathname={pathname}
         onClose={onClose}
@@ -509,9 +509,7 @@ function SidebarGroup({
   active: boolean;
 }) {
   const [open, setOpen] =
-    useState(
-      active,
-    );
+    useState(active);
 
   const handleToggle = () => {
     setOpen((current) => !current);
@@ -625,10 +623,7 @@ function SidebarGroup({
             {visibleChildren.map(
               (child) => (
                 <SidebarSubItem
-                  key={
-                    child.href ??
-                    child.label
-                  }
+                  key={child.label}
                   item={child}
                   pathname={pathname}
                   onClose={onClose}
